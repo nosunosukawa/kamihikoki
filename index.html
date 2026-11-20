@@ -594,6 +594,7 @@ function tryFold(A,B){ const r=FD(A,B), over=r.err?faces.length>160||D.folds.len
   else if(moved){ D.crush++; const n=D.folds.length+D.crush; if(n>=CRUSH) becomeBall(); else { changed();
       const why=over?`重なりが厚くて（約${(K.stack(r.err?faces:r.faces)*paper.th).toFixed(1)}mm）、もうきれいには折れません。`:r.err==='center'?'中心線をこえては折れません。':r.err==='tear'?'その折り方だと、紙が中心線で裂けてしまいます。':'そこでは折れません。';
       hint(n<6?why+`しわが付きました（折り ${n}回）`:n<11?`しわだらけになってきました（折り ${n}回）`:`もう紙というより、かたまりです（折り ${n}回）`,true); } } }
+function lineOnPaper(P1,P2){ for(let i=0;i<=24;i++){ const t=i/24; if(onPaper([Math.abs(P1[0]+(P2[0]-P1[0])*t),P1[1]+(P2[1]-P1[1])*t])) return true; } return false; }   // 引いた線そのものが、紙の上を通っているか
 function onPaper(A){ return faces.some(f=>K.inside(f.p,A[0],A[1])||f.p.some(q=>Math.hypot(q[0]-A[0],q[1]-A[1])<1)); }
 fc.addEventListener('pointerdown',e=>{ if(busy) return; e.preventDefault(); snapTol=e.pointerType==='mouse'?12:26; const p=evToPaper(e), pt=[p.u,p.v], v=pick(pt); ghost=null; hv=null;
   let d;
@@ -626,6 +627,7 @@ function tap(e){ const p=evToPaper(e), pt=[p.u,p.v], tol=snapTol*(fc.width/fc.cl
   if(v) select(v); else hint('線を引くときは、指を置いたまま動かします。角を運ぶときは、黄色い角をタップします。'); }
 function endDrag(e){ if(!drag||e.pointerId!==drag.id) return; const d=drag; drag=null; ghost=null; hv=null;
   if(e.type==='pointerup'){ if(d.line&&d.moved){ const r=d.res; if(r&&!r.err) tryFold(r.A,r.B);
+      else if(!lineOnPaper(d.P1,d.P2)) hint('線が紙にかかっていません。紙の上を横切るように引きます。',true);          // 紙の外をなぞっただけなら、しわに数えない（台を触っただけで玉に近づいていた）
       else if(r&&r.err==='tear'){ D.crush++; const n=D.folds.length+D.crush; if(n>=CRUSH) becomeBall(); else { changed(); hint(`その線は、のばすと中心線をななめに横切るので、紙が裂けそうです。しわが付きました（折り ${n}回）`,true); } }
       else hint('線が紙にかかっていません。紙を横切るように引きます。',true); }
     else if(d.moved) tryFold(d.A,d.B); else tap(e); }                                 // 取り消し（pointercancel）では折らない
