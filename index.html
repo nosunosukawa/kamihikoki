@@ -269,7 +269,7 @@ details.more[open] summary{margin-bottom:6px}
         <div class="btns"><button class="b" id="reset2">新しい紙でやり直す</button></div>
       </div>
       <details class="more">
-        <summary>紙を変える（材質・サイズ）</summary>
+        <summary>紙を変える <small id="paperNow" style="font-weight:500"></small></summary>
         <div class="row">
           <label class="f">材質<select id="mat"></select></label>
           <label class="f">サイズ<select id="size"></select></label>
@@ -664,13 +664,14 @@ function freshPaper(){ D.folds=[]; D.crush=0; D.preset=''; if(D.kind==='ball'){ 
 function hint(t,bad){ const h=$('#foldHint'); h.textContent=t; h.classList.toggle('bad',!!bad); }
 let busy=false;
 async function runPreset(p){ if(busy) return; busy=true; D.folds=[]; D.crush=0; refold(); D.preset=p.id; changed(); for(const f of p.folds){ await new Promise(r=>setTimeout(r,420)); const r=K.fold(faces,f[0],f[1],f[2]&1,f[2]&2); if(r.err) break; history.push(faces); faces=r.faces; D.folds.push([f[0].slice(),f[1].slice(),f[2]|0]); changed(); }
-  D.h=p.prm.h; D.wk=p.prm.wk||0; D.elevD=p.prm.elevD||0; D.rud=p.prm.rud||0; D.dih=p.prm.dih; D.elev=p.prm.elev; D.clips=p.prm.clips; syncInputs(); changed(); hint(`お手本「${p.name}」を折りました。${p.note}。`); busy=false; }
+  D.h=p.prm.h; D.wk=p.prm.wk||0; D.elevD=p.prm.elevD||0; D.rud=p.prm.rud||0; D.dih=p.prm.dih; D.elev=p.prm.elev; D.clips=p.prm.clips; syncInputs(); changed(); hint(`お手本「${p.name}」を折りました。${p.note}。`+(D.mat!=='copy'||D.size!=='a4'?`（紙は ${paper.mat.name}・${paper.size.name}）`:'')); busy=false; }
 
 /* ================= 画面の更新 ================= */
 const fmt=(x,n)=>Number(x).toFixed(n==null?1:n);
 function changed(){ buildAll(); buildMesh(); bendMesh(glideFx); drawFold(); renderDiag(); renderLabels(); lbDirty=true; }
 function renderLabels(){ if(typeof drawIcons==='function') queueMicrotask(drawIcons);
   { const v=$('#verdict'), vf=$('#verdictFly'); vf.innerHTML=v.innerHTML; vf.className=v.className; vf.hidden=!v.textContent; $('#flyTune').hidden=D.kind!=='plane'; }
+  $('#paperNow').textContent=`いま：${paper.mat.name}・${paper.size.name}`;      // たたんだままでも、いまの紙がわかるように（最強型は紙を A3 の画用紙に変える）
   $('#paperCap').textContent=`${paper.size.W}×${paper.size.L}mm・1m²あたり${paper.gsm}g・厚さ 約${paper.th}mm → 1枚 ${fmt(paper.mass*1000,2)}g。こし（曲げこわさ）はコピー用紙の ${fmt(paper.D/1.64e-4,paper.D/1.64e-4<1?2:1)}倍`;
   $('#foldN').textContent=D.folds.length?`折り ${D.folds.length+D.crush}回\n重なり ${K.stack(faces)}枚\n厚さ ${fmt(K.stack(faces)*paper.th,1)}mm`:'';
   $('#undo').disabled=!(history.length||D.crush>0); $('#reset').disabled=!(D.folds.length||D.crush>0);
