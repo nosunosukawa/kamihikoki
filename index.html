@@ -116,6 +116,7 @@ select{width:100%;margin-top:3px;padding:8px 8px;border:1.5px solid var(--ink);b
 .app.wide #foldN{font-size:12px;text-align:left;padding-left:4px}
 .app.wide #foldHint{min-height:62px;font-size:14px;line-height:1.5;padding:8px 12px;bottom:12px}
 .prow{display:flex;align-items:center;gap:10px}
+.kindrow{margin-bottom:10px} .kindrow #kind{flex:1} .kindrow #kind button{padding:7px 4px}
 .prow>span{font-family:var(--hand);font-size:14.5px;font-weight:600;white-space:nowrap}
 #presets{flex:1;display:grid;grid-template-columns:repeat(auto-fit,minmax(64px,1fr));gap:8px}
 #presets .b{padding:12px 4px;font-size:14px;background:#eef3ef;white-space:nowrap}
@@ -173,6 +174,11 @@ details.more[open] summary{margin-bottom:6px}
   <aside class="panel" id="panel">
     <!-- 1 つくる -->
     <div class="pane make">
+      <div class="prow kindrow"><span>つくるもの</span><div class="seg" id="kind">
+        <button data-kind="plane" aria-pressed="true">飛行機</button>
+        <button data-kind="ring" aria-pressed="false">円筒</button>
+        <button data-kind="ball" aria-pressed="false">紙の玉</button>
+      </div></div>
       <div id="mkPlane">
         <div class="prow"><span>お手本で折る</span><div id="presets"></div></div>
       </div>
@@ -182,22 +188,17 @@ details.more[open] summary{margin-bottom:6px}
         <div class="sl"><label for="ringN">折り返す回数</label><output id="ringNo"></output><input id="ringN" type="range" min="1" max="6" step="1" value="5"></div>
       </div>
       <div id="mkBall" hidden>
-        <p class="hint">100回折って、紙がくしゃくしゃの玉になりました（裏技）。翼がないので、空気抵抗を受けながら放物線で飛びます。そのかわり、思いきり速く投げられます。</p>
+        <p class="hint">紙をくしゃくしゃに丸めた玉です（折れない折りを30回くり返しても、こうなります）。翼がないので、空気抵抗を受けながら放物線で飛びます。そのかわり、思いきり速く投げられます。</p>
         <div class="seg" id="tight" style="grid-template-columns:1fr 1fr"><button data-t="0" aria-pressed="true">ふんわり丸める</button><button data-t="1" aria-pressed="false">固くにぎる</button></div>
         <div class="btns"><button class="b" id="reset2">新しい紙でやり直す</button></div>
       </div>
       <details class="more">
-        <summary>紙や、つくるものを変える（材質・サイズ・円筒）</summary>
+        <summary>紙を変える（材質・サイズ）</summary>
         <div class="row">
           <label class="f">材質<select id="mat"></select></label>
           <label class="f">サイズ<select id="size"></select></label>
         </div>
         <p class="cap" id="paperCap"></p>
-        <h2>つくるもの</h2>
-        <div class="seg" id="kind" style="grid-template-columns:1fr 1fr">
-          <button data-kind="plane" aria-pressed="true">折る飛行機<small>自分で折る</small></button>
-          <button data-kind="ring" aria-pressed="false">円筒<small>輪の翼</small></button>
-        </div>
       </details>
       <div class="stick"><button class="b go" data-go="tune">次へ：飛行機の形にする</button></div>
     </div>
@@ -295,7 +296,7 @@ if(!window.THREE||!K){ $('#foldHint').textContent='部品を読み込めませ�
 const V3=THREE.Vector3;
 
 /* ================= 状態 ================= */
-const CRUSH=100, D={loc:'yard',mat:'copy',size:'a4',kind:'plane',crush:0,folds:[],preset:'',h:16,dih:8,elev:2.5,clips:0,wl:0,wa:90,ringA:20,ringN:5,tight:0,dist:1,
+const CRUSH=30, D={loc:'yard',mat:'copy',size:'a4',kind:'plane',crush:0,folds:[],preset:'',h:16,dih:8,elev:2.5,clips:0,wl:0,wa:90,ringA:20,ringN:5,tight:0,dist:1,
   v:6,ang:5,spin:10,temp:20,alt:0,head:0,cross:0,gust:0};
 let paper, faces, history=[], env, pl, an, tab='make';
 function refold(){ sel=null; faces=K.newPaper(paper); history=[]; const ok=[]; for(const f of D.folds){ const r=K.fold(faces,f[0],f[1],f[2]&1,f[2]&2); if(r.err) break; history.push(faces); faces=r.faces; ok.push(f); } D.folds=ok; }
@@ -496,13 +497,13 @@ function lineFold(P1,P2){ let a=P1, b=P2; if(a[0]<=0&&b[0]<=0&&(a[0]<0||b[0]<0))
     const k=(A[0]-mx)*nx+(A[1]-my)*ny, B=[A[0]-2*k*nx,A[1]-2*k*ny], r=FD(A,B); if(r.err){ if(r.err==='tear') err='tear'; continue; }
     if(!best||r.ma<best.ar) best={A,B,r,ar:r.ma}; }
   return best||{err}; }
-/* 折る。きれいに折れたら形が変わる。折れなかった手や、厚くなりすぎたあとの手は、しわとして数える。合わせて100回で玉になる */
+/* 折る。きれいに折れたら形が変わる。折れなかった手や、厚くなりすぎたあとの手は、しわとして数える。合わせて30回で玉になる */
 const tooThick=f=>f.length>160||D.folds.length>=14||K.stack(f)*paper.th>K.FOLD_MM;      // 折ったあとの束が厚すぎるか
 function tryFold(A,B){ const r=FD(A,B), over=r.err?faces.length>160||D.folds.length>=14:tooThick(r.faces), moved=Math.hypot(A[0]-B[0],A[1]-B[1])>=4;
   if(moved&&!r.err&&!over){ history.push(faces); faces=r.faces; D.folds.push([A,B,(under?1:0)|(topOnly?2:0)]); D.preset=''; changed(); hint('折れました。つづけて折るか、「次へ」で胴体と翼を折って飛行機の形にします。'); }
   else if(moved){ D.crush++; const n=D.folds.length+D.crush; if(n>=CRUSH) becomeBall(); else { changed();
       const why=over?`重なりが厚くて（約${(K.stack(r.err?faces:r.faces)*paper.th).toFixed(1)}mm）、もうきれいには折れません。`:r.err==='center'?'中心線をこえては折れません。':r.err==='tear'?'その折り方だと、紙が中心線で裂けてしまいます。':'そこでは折れません。';
-      hint(n<25?why+`しわが付きました（折り ${n}回）`:n<60?`しわだらけになってきました（折り ${n}回）`:`もう紙というより、かたまりです（折り ${n}回）`,true); } } }
+      hint(n<12?why+`しわが付きました（折り ${n}回）`:n<22?`しわだらけになってきました（折り ${n}回）`:`もう紙というより、かたまりです（折り ${n}回）`,true); } } }
 function onPaper(A){ return faces.some(f=>K.inside(f.p,A[0],A[1])||f.p.some(q=>Math.hypot(q[0]-A[0],q[1]-A[1])<1)); }
 fc.addEventListener('pointerdown',e=>{ if(busy) return; e.preventDefault(); snapTol=e.pointerType==='mouse'?12:26; const p=evToPaper(e), pt=[p.u,p.v], v=pick(pt); ghost=null; hv=null;
   let d;
@@ -535,12 +536,13 @@ function tap(e){ const p=evToPaper(e), pt=[p.u,p.v], tol=snapTol*(fc.width/fc.cl
   if(v) select(v); else hint('線を引くときは、指を置いたまま動かします。角を運ぶときは、黄色い角をタップします。'); }
 function endDrag(e){ if(!drag||e.pointerId!==drag.id) return; const d=drag; drag=null; ghost=null; hv=null;
   if(e.type==='pointerup'){ if(d.line&&d.moved){ const r=d.res; if(r&&!r.err) tryFold(r.A,r.B);
-      else hint(r&&r.err==='tear'?'その線は、のばすと中心線をななめに横切るので折れません。中心線に届かない線か、まっすぐ横の線を引きます。':'線が紙にかかっていません。紙を横切るように引きます。',true); }
+      else if(r&&r.err==='tear'){ D.crush++; const n=D.folds.length+D.crush; if(n>=CRUSH) becomeBall(); else { changed(); hint(`その線は、のばすと中心線をななめに横切るので、紙が裂けそうです。しわが付きました（折り ${n}回）`,true); } }
+      else hint('線が紙にかかっていません。紙を横切るように引きます。',true); }
     else if(d.moved) tryFold(d.A,d.B); else tap(e); }                                 // 取り消し（pointercancel）では折らない
   drawFold(); }
 fc.addEventListener('pointerup',endDrag); fc.addEventListener('pointercancel',endDrag);
 fc.addEventListener('touchstart',e=>e.preventDefault(),{passive:false}); fc.addEventListener('contextmenu',e=>e.preventDefault());
-function becomeBall(){ D.crush=CRUSH-D.folds.length; D.kind='ball'; D.v=22; D.ang=32; syncInputs(); changed(); requestAnimationFrame(fit); toast('100回折って、くしゃくしゃ玉になりました'); }
+function becomeBall(){ D.crush=CRUSH-D.folds.length; D.kind='ball'; D.v=22; D.ang=32; syncInputs(); changed(); requestAnimationFrame(fit); toast(D.folds.length+D.crush>=CRUSH?'折りすぎて、くしゃくしゃ玉になりました':'紙を丸めて、くしゃくしゃ玉にしました'); }
 function freshPaper(){ D.folds=[]; D.crush=0; D.preset=''; if(D.kind==='ball'){ D.kind='plane'; D.v=6; D.ang=5; syncInputs(); } refold(); changed(); requestAnimationFrame(fit); hint(HINT0); }
 function hint(t,bad){ const h=$('#foldHint'); h.textContent=t; h.classList.toggle('bad',!!bad); }
 let busy=false;
@@ -710,7 +712,7 @@ $('#loc').addEventListener('change',e=>{ D.loc=e.target.value; D.alt=LOC().alt||
 fillSel('mat',K.MATERIALS,m=>`${m.name}（${m.gsm}g/m²）`); fillSel('size',K.SIZES,s=>`${s.name}（${s.W}×${s.L}）`);
 $('#mat').addEventListener('change',e=>{ D.mat=e.target.value; setPaper(); refold(); changed(); });
 $('#size').addEventListener('change',e=>{ D.size=e.target.value; setPaper(); D.folds=[]; D.crush=0; D.preset=''; if(D.kind==='ball') D.kind='plane'; refold(); changed(); hint('紙の大きさを変えたので、広げた状態に戻しました。'); });
-$$('#kind button').forEach(b=>b.addEventListener('click',()=>{ if(D.kind==='ball'){ D.crush=0; D.folds=[]; refold(); } D.kind=b.dataset.kind; if(D.kind==='ring'){ D.v=13; D.ang=8; } else { D.v=6; D.ang=5; } syncInputs(); changed(); requestAnimationFrame(fit); }));
+$$('#kind button').forEach(b=>b.addEventListener('click',()=>{ if(b.dataset.kind==='ball'){ if(D.kind!=='ball') becomeBall(); return; } if(D.kind==='ball'){ D.crush=0; D.folds=[]; refold(); } D.kind=b.dataset.kind; if(D.kind==='ring'){ D.v=13; D.ang=8; } else { D.v=6; D.ang=5; } syncInputs(); changed(); requestAnimationFrame(fit); }));
 $('#reset2').addEventListener('click',freshPaper);
 $$('#tight button').forEach(b=>b.addEventListener('click',()=>{ D.tight=+b.dataset.t; changed(); }));
 for(const [id,key] of [['pH','h'],['pDih','dih'],['pElev','elev'],['pClip','clips'],['pWl','wl'],['pWa','wa'],['ringA','ringA'],['ringN','ringN'],['tV','v'],['tA','ang'],['tS','spin'],['eT','temp'],['eAlt','alt'],['eHead','head'],['eCross','cross'],['eGust','gust']])
