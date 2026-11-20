@@ -99,12 +99,21 @@ select{width:100%;margin-top:3px;padding:8px 8px;border:1.5px solid var(--ink);b
 .result .big i{font-style:normal;font-size:18px;margin-left:4px;color:var(--ink)}
 .result p{font-size:13px;margin-top:4px}
 #chart{width:100%;height:110px;display:block;margin:8px 0 2px;border:1px solid var(--line);border-radius:6px;background:#f7faf8}
+.stick{position:sticky;bottom:calc(-1 * max(16px,env(safe-area-inset-bottom)));background:linear-gradient(0deg,var(--paper) 78%,rgba(251,250,245,0));padding:14px 0 max(16px,env(safe-area-inset-bottom));margin-top:6px;z-index:3}
+details.more{margin-top:10px;border-top:1.5px solid var(--line);padding-top:4px}
+details.more summary{font-weight:700;font-size:13.5px;padding:9px 0;cursor:pointer;color:#33443e}
+details.more[open] summary{margin-bottom:6px}
+#presets .b{flex:1 1 0;padding:12px 8px;font-size:14px;background:#eef3ef;white-space:nowrap}
+.sl input{height:34px}
 .foot{font-size:11px;color:#5b6b65;margin-top:14px;line-height:1.6}
 .toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--ink);color:#fff;font-size:13px;padding:9px 14px;border-radius:8px;z-index:9;opacity:0;transition:opacity .2s;pointer-events:none;white-space:nowrap}
 .toast.on{opacity:1}
 [hidden]{display:none!important}
 @media (max-width:760px){
   .app{grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr) minmax(0,46%)}
+  .app[data-tab="make"][data-kind="plane"]{grid-template-rows:auto minmax(0,1fr) minmax(0,37%)}
+  .app[data-tab="fly"]{grid-template-rows:auto minmax(0,1fr) minmax(0,42%)}
+  .b{padding:11px 14px;font-size:14px}
   .panel{border-left:0;border-top:3px solid var(--ink)}
   .bar{gap:8px;padding-left:10px;padding-right:10px} .bar h1{font-size:15px} .tabs button{padding:6px 9px;font-size:12px}
   .lb canvas,.lb p{width:44vw;max-width:44vw}
@@ -140,19 +149,8 @@ select{width:100%;margin-top:3px;padding:8px 8px;border:1.5px solid var(--ink);b
   <aside class="panel" id="panel">
     <!-- 1 つくる -->
     <div class="pane make">
-      <h2>紙をえらぶ</h2>
-      <div class="row">
-        <label class="f">材質<select id="mat"></select></label>
-        <label class="f">サイズ<select id="size"></select></label>
-      </div>
-      <p class="cap" id="paperCap"></p>
-      <h2>つくるもの</h2>
-      <div class="seg" id="kind" style="grid-template-columns:1fr 1fr">
-        <button data-kind="plane" aria-pressed="true">折る飛行機<small>自分で折る</small></button>
-        <button data-kind="ring" aria-pressed="false">円筒<small>輪の翼</small></button>
-      </div>
       <div id="mkPlane">
-        <p class="hint" id="foldHint">紙の角や辺を<b>つまんで、持っていきたい所までドラッグ</b>します。左右は同時に折れます。</p>
+        <p class="hint" id="foldHint">紙の角（黄色い点）をタップして、次に青い丸をタップします。なぞっても折れます。左右は同時に折れます。</p>
         <div class="btns" id="presets"></div>
         <div class="btns"><button class="b" id="undo">1手もどす</button><button class="b" id="reset">広げる</button><span class="cap" id="foldN" style="align-self:center"></span></div>
       </div>
@@ -166,7 +164,20 @@ select{width:100%;margin-top:3px;padding:8px 8px;border:1.5px solid var(--ink);b
         <div class="seg" id="tight" style="grid-template-columns:1fr 1fr"><button data-t="0" aria-pressed="true">ふんわり丸める</button><button data-t="1" aria-pressed="false">固くにぎる</button></div>
         <div class="btns"><button class="b" id="reset2">新しい紙でやり直す</button></div>
       </div>
-      <div class="btns"><button class="b go" data-go="tune">仕上げへ進む</button></div>
+      <details class="more">
+        <summary>紙や、つくるものを変える（材質・サイズ・円筒）</summary>
+        <div class="row">
+          <label class="f">材質<select id="mat"></select></label>
+          <label class="f">サイズ<select id="size"></select></label>
+        </div>
+        <p class="cap" id="paperCap"></p>
+        <h2>つくるもの</h2>
+        <div class="seg" id="kind" style="grid-template-columns:1fr 1fr">
+          <button data-kind="plane" aria-pressed="true">折る飛行機<small>自分で折る</small></button>
+          <button data-kind="ring" aria-pressed="false">円筒<small>輪の翼</small></button>
+        </div>
+      </details>
+      <div class="stick"><button class="b go" data-go="tune">仕上げへ進む</button></div>
     </div>
 
     <!-- 2 仕上げ -->
@@ -180,10 +191,13 @@ select{width:100%;margin-top:3px;padding:8px 8px;border:1.5px solid var(--ink);b
       </div>
       <h2>診断<small>折った形から計算</small></h2>
       <p class="hint" id="verdict"></p>
-      <canvas id="topview" width="640" height="300" aria-label="上から見た機体。重心と中立点"></canvas>
-      <p class="cap" id="topCap"></p>
-      <div class="stats" id="stats"></div>
-      <div class="btns"><button class="b go" data-go="fly">飛ばしに行く</button></div>
+      <details class="more">
+        <summary>くわしい数字を見る</summary>
+        <canvas id="topview" width="640" height="300" aria-label="上から見た機体。重心と中立点"></canvas>
+        <p class="cap" id="topCap"></p>
+        <div class="stats" id="stats"></div>
+      </details>
+      <div class="stick"><button class="b go" data-go="fly">飛ばしに行く</button></div>
     </div>
 
     <!-- 3 飛ばす -->
@@ -206,16 +220,16 @@ select{width:100%;margin-top:3px;padding:8px 8px;border:1.5px solid var(--ink);b
       <div class="sl"><label for="tV">投げる速さ</label><output id="tVo"></output><input id="tV" type="range" min="2" max="15" step="0.5" value="6"></div>
       <div class="sl"><label for="tA">投げる角度</label><output id="tAo"></output><input id="tA" type="range" min="-10" max="60" step="1" value="5"></div>
       <div class="sl" id="spinRow" hidden><label for="tS">回転</label><output id="tSo"></output><input id="tS" type="range" min="0" max="15" step="1" value="10"></div>
-      <div class="btns"><button class="b go" id="throw">投げる</button></div>
-      <h2>空気と風<small id="rhoCap"></small></h2>
-      <div id="airBox">
+      <details class="more" id="airBox">
+        <summary>空気と風を変える <small id="rhoCap" style="font-weight:500"></small></summary>
       <div class="sl"><label for="eT">気温</label><output id="eTo"></output><input id="eT" type="range" min="-10" max="40" step="1" value="20"></div>
       <div class="sl"><label for="eAlt">標高</label><output id="eAlto"></output><input id="eAlt" type="range" min="0" max="3000" step="100" value="0"></div>
       <div class="sl"><label for="eHead">風（前後）</label><output id="eHeado"></output><input id="eHead" type="range" min="-5" max="5" step="0.5" value="0"></div>
       <div class="sl"><label for="eCross">風（横）</label><output id="eCrosso"></output><input id="eCross" type="range" min="-3" max="3" step="0.5" value="0"></div>
       <div class="sl"><label for="eGust">風の息（突風）</label><output id="eGusto"></output><input id="eGust" type="range" min="0" max="2" step="0.1" value="0"></div>
-      </div>
+      </details>
       <p class="cap" id="bestCap"></p>
+      <div class="stick"><button class="b go" id="throw">投げる</button></div>
     </div>
     <p class="foot">計算のしくみ：折った紙の重なりから重心と慣性を出し、翼と胴体を細い帯に分けて、帯ごとの空気の力を足し合わせています（翼素法）。左下の流れの絵は、翼の断面まわりを2次元で解いたものです（格子ボルツマン法）。実物の紙のしなりや折りぐせは入っていません。<br>世界記録：飛距離 88.31m（2022年）、滞空 29.2秒（2010年）。ギネス世界記録より。<br>月の重力は 1.62m/s²、火星は重力 3.71m/s²・大気の密度 約0.020kg/m³ として計算（NASA の資料の値）。</p>
   </aside>
@@ -223,7 +237,7 @@ select{width:100%;margin-top:3px;padding:8px 8px;border:1.5px solid var(--ink);b
 <div class="toast" id="toast" role="status"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" integrity="sha512-dLxUelApnYxpLt6K2iomGngnHO83iUvZytA3YjDUCjT0HDOHKXnVYdf3hU4JjM8uEhxf9nD1/ey98U3t2vZ0qQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-<script src="core.js"></script>
+<script src="core.js?v=2"></script>
 <script>
 (()=>{
 'use strict';
@@ -250,7 +264,7 @@ const V3=THREE.Vector3;
 const CRUSH=100, D={loc:'yard',mat:'copy',size:'a4',kind:'plane',crush:0,folds:[],preset:'',h:16,dih:8,elev:2.5,clips:0,ringA:20,ringN:5,tight:0,
   v:6,ang:5,spin:10,temp:20,alt:0,head:0,cross:0,gust:0};
 let paper, faces, history=[], env, pl, an, tab='make';
-function refold(){ faces=K.newPaper(paper); history=[]; const ok=[]; for(const f of D.folds){ const r=K.fold(faces,f[0],f[1]); if(r.err) break; history.push(faces); faces=r.faces; ok.push(f); } D.folds=ok; }
+function refold(){ sel=null; faces=K.newPaper(paper); history=[]; const ok=[]; for(const f of D.folds){ const r=K.fold(faces,f[0],f[1]); if(r.err) break; history.push(faces); faces=r.faces; ok.push(f); } D.folds=ok; }
 function buildAll(){
   const L=LOC(), sp=L.g!=null; env=K.makeEnv({tempC:D.temp,alt:D.alt,head:sp?0:D.head,cross:sp?0:D.cross,gust:sp?0:D.gust,g:L.g,rho:L.rho,mu:L.mu}); env.noGround=!!L.noGround;
   if(D.kind==='plane') pl=K.buildPlane(faces,K.toPrm({h:D.h,dih:D.dih,elev:D.elev,clips:D.clips,e:Math.max(12,paper.L*.075),clipV:paper.L*.08}),paper,env.rho);
@@ -347,7 +361,8 @@ const orbit={yaw:-.9,pitch:.42,auto:true};
   ['pointerup','pointercancel'].forEach(n=>g.addEventListener(n,()=>{ last=null; })); }
 
 /* ================= 折る台（2D） ================= */
-const fc=$('#foldcv'), fx=fc.getContext('2d'); let FS={s:1,x0:0,y0:0}, drag=null, ghost=null, flashBad=0;
+const fc=$('#foldcv'), fx=fc.getContext('2d'); let FS={s:1,x0:0,y0:0}, drag=null, ghost=null, sel=null, selT=[], snapTol=12;
+const HINT0='紙の角（黄色い点）をタップして、次に青い丸をタップします。なぞっても折れます。左右は同時に折れます。';
 function foldScale(){ const m=26*(fc.width/Math.max(1,fc.clientWidth)); const s=Math.max(.05,Math.min((fc.width-2*m)/paper.W,(fc.height-2*m)/paper.L)); FS={s,x0:fc.width/2,y0:(fc.height-paper.L*s)/2}; }
 const toPx=(u,v,side)=>[FS.x0+side*u*FS.s,FS.y0+v*FS.s];
 function drawFaces(list,alpha){ const [cf,cb]=COLORS[D.mat]; const sorted=list.slice().sort((a,b)=>a.z-b.z);
@@ -355,6 +370,8 @@ function drawFaces(list,alpha){ const [cf,cb]=COLORS[D.mat]; const sorted=list.s
     fx.globalAlpha=alpha; fx.shadowColor='rgba(0,0,0,.28)'; fx.shadowBlur=f.z?5*FS.s:9*FS.s; fx.shadowOffsetY=f.z?1.2*FS.s:3*FS.s; fx.fillStyle=f.flip?cb:cf; fx.fill();
     fx.shadowColor='transparent'; fx.lineWidth=Math.max(1,.5*FS.s); fx.strokeStyle='rgba(22,36,31,.4)'; fx.stroke(); }
   fx.globalAlpha=1; }
+function mark(x,y,k,pu){ fx.setLineDash([]); fx.beginPath(); fx.arc(x,y,15*k*pu,0,TAU); fx.fillStyle='rgba(30,99,216,.2)'; fx.fill(); fx.lineWidth=2*k; fx.strokeStyle='#1E63D8'; fx.stroke();
+  fx.beginPath(); fx.arc(x,y,7*k,0,TAU); fx.fillStyle='#1E63D8'; fx.fill(); fx.lineWidth=2*k; fx.strokeStyle='#fff'; fx.stroke(); }   // 持っていく先の印（青い丸）
 function drawFold(){
   if(!paper||!faces||fc.clientWidth<20) return; foldScale(); const w=fc.width, h=fc.height, s=FS.s;   // 隠れているときは描かない
   fx.fillStyle='#1F6B52'; fx.fillRect(0,0,w,h);
@@ -366,33 +383,65 @@ function drawFold(){
     for(let i=0;i<D.crush*7;i++){ const u=(rnd()*2-1)*bd.umax, v=bd.vmin+rnd()*(bd.vmax-bd.vmin), a=rnd()*TAU, l=6+rnd()*26, p=toPx(u,v,1), q=toPx(u+Math.cos(a)*l,v+Math.sin(a)*l,1);
       fx.strokeStyle=i%2?'rgba(22,36,31,.28)':'rgba(255,255,255,.7)'; fx.beginPath(); fx.moveTo(p[0],p[1]); fx.lineTo(q[0],q[1]); fx.stroke(); } fx.restore(); }
   fx.setLineDash([6*s,5*s]); fx.strokeStyle='rgba(22,36,31,.45)'; fx.lineWidth=Math.max(1,.6*s); fx.beginPath(); fx.moveTo(FS.x0,FS.y0-8*s); fx.lineTo(FS.x0,FS.y0+paper.L*s+8*s); fx.stroke(); fx.setLineDash([]);
-  if(drag){ const a=toPx(drag.A[0],drag.A[1],drag.side), b=toPx(drag.B[0],drag.B[1],drag.side); const bad=!ghost;
+  if(drag&&drag.moved){ const a=toPx(drag.A[0],drag.A[1],drag.side), b=toPx(drag.B[0],drag.B[1],drag.side); const bad=!ghost, k=fc.width/Math.max(1,fc.clientWidth);
+    for(const t of drag.T||[]){ const q=toPx(t[0],t[1],drag.side); mark(q[0],q[1],k,1); }
     if(ghost){ const L=ghost.line, t=[-L.ny,L.nx]; for(const side of [1,-1]){ const p=toPx(L.px-t[0]*400,L.py-t[1]*400,side), q=toPx(L.px+t[0]*400,L.py+t[1]*400,side); fx.setLineDash([8*s,6*s]); fx.strokeStyle='#F2B632'; fx.lineWidth=Math.max(2,1.1*s); fx.beginPath(); fx.moveTo(p[0],p[1]); fx.lineTo(q[0],q[1]); fx.stroke(); fx.setLineDash([]); } }
     fx.strokeStyle=bad?'#E5482D':'#fff'; fx.lineWidth=Math.max(2,1*s); fx.beginPath(); fx.moveTo(a[0],a[1]); fx.lineTo(b[0],b[1]); fx.stroke();
     for(const p of [a,b]){ fx.beginPath(); fx.arc(p[0],p[1],5*Math.max(1,s*.7),0,TAU); fx.fillStyle=bad?'#E5482D':'#F2B632'; fx.fill(); fx.strokeStyle='#16241f'; fx.lineWidth=2; fx.stroke(); } }
-  else { const vs=verts(); fx.fillStyle='rgba(242,182,50,.95)'; for(const q of vs) for(const side of (q[0]<.5?[1]:[1,-1])){ const p=toPx(q[0],q[1],side); fx.beginPath(); fx.arc(p[0],p[1],3.2*Math.max(1,s*.6),0,TAU); fx.fill(); } }
+  else { const k=fc.width/Math.max(1,fc.clientWidth), sides=q=>(q[0]<.5?[1]:[1,-1]);
+    for(const q of verts()) for(const side of sides(q)){ const p=toPx(q[0],q[1],side); fx.beginPath(); fx.arc(p[0],p[1],5.5*k,0,TAU); fx.fillStyle='#F2B632'; fx.fill(); fx.lineWidth=1.5*k; fx.strokeStyle='#16241f'; fx.stroke(); }
+    if(sel){ const pulse=1+.18*Math.sin(performance.now()/160);
+      for(const t of selT) for(const side of sides(sel)){ const a=toPx(sel[0],sel[1],side), b=toPx(t[0],t[1],side); fx.setLineDash([5*k,5*k]); fx.strokeStyle='rgba(30,99,216,.75)'; fx.lineWidth=2*k; fx.beginPath(); fx.moveTo(a[0],a[1]); fx.lineTo(b[0],b[1]); fx.stroke(); mark(b[0],b[1],k,pulse); }
+      for(const side of sides(sel)){ const a=toPx(sel[0],sel[1],side); fx.lineWidth=3.5*k; fx.strokeStyle='#E5482D'; fx.beginPath(); fx.arc(a[0],a[1],12*k*pulse,0,TAU); fx.stroke(); } } }
 }
 function verts(){ const out=[]; for(const f of faces) for(const q of f.p) if(!out.some(o=>Math.hypot(o[0]-q[0],o[1]-q[1])<1.5)) out.push(q); return out; }
 function evToPaper(e){ const r=fc.getBoundingClientRect(), k=fc.width/r.width, x=(e.clientX-r.left)*k, y=(e.clientY-r.top)*k, du=(x-FS.x0)/FS.s; return {u:Math.abs(du),v:(y-FS.y0)/FS.s,side:du<0?-1:1}; }
-function snap(pt,isB,A){ const tol=11*(fc.width/fc.clientWidth)/FS.s; let best=null,bd=tol;
-  for(const q of verts()){ const d=Math.hypot(q[0]-pt[0],q[1]-pt[1]); if(d<bd){ bd=d; best=[q[0],q[1]]; } }
-  if(best) return best; const o=[pt[0],pt[1]];
-  if(o[0]<tol*.8) o[0]=0; if(isB&&A){ if(Math.abs(o[1]-A[1])<tol*.6) o[1]=A[1]; if(Math.abs(o[0]-A[0])<tol*.6) o[0]=A[0]; } return o; }
-fc.addEventListener('pointerdown',e=>{ if(busy) return; e.preventDefault(); const p=evToPaper(e), A=snap([p.u,p.v]); if(!faces.some(f=>K.inside(f.p,A[0],A[1])||f.p.some(q=>Math.hypot(q[0]-A[0],q[1]-A[1])<1))) return;
-  try{ fc.setPointerCapture(e.pointerId); }catch(_){} drag={A,B:A,side:p.side,id:e.pointerId}; ghost=null; drawFold(); });
-fc.addEventListener('pointermove',e=>{ if(!drag||e.pointerId!==drag.id) return; const p=evToPaper(e); drag.B=snap([p.side===drag.side?p.u:0,p.v],true,drag.A); const r=K.fold(faces,drag.A,drag.B); ghost=r.err?null:r; drag.err=r.err; drawFold(); });
-function endDrag(e){ if(!drag||e.pointerId!==drag.id) return; const d=drag; drag=null;
-  // きれいに折れたら形が変わる。折れなかった手や、厚くなりすぎたあとの手は、しわとして数える。合わせて100回で玉になる
-  const over=faces.length>160||D.folds.length>=14, moved=Math.hypot(d.A[0]-d.B[0],d.A[1]-d.B[1])>=4;
-  if(moved&&ghost&&!over){ history.push(faces); faces=ghost.faces; D.folds.push([d.A,d.B]); D.preset=''; changed(); hint('折れました。つづけて折るか、「仕上げへ進む」を押します。'); }
+function snap(pt,isB,A){ const tol=snapTol*(fc.width/fc.clientWidth)/FS.s, onC=!!(isB&&A&&A[0]<.5);   // onC：中心線の上の点は、中心線の上にしか持っていけない
+  const o=[onC?0:pt[0],pt[1]]; let best=null,bd=tol;
+  for(const q of verts()){ if(onC&&q[0]>.5) continue; const d=Math.hypot(q[0]-o[0],q[1]-o[1]); if(d<bd){ bd=d; best=[q[0],q[1]]; } }
+  if(best) return best;
+  if(o[0]<tol*(isB?1.3:.8)) o[0]=0;                                                              // 中心線の近くは、中心線に吸いつく
+  if(isB&&A){ if(Math.abs(o[1]-A[1])<tol*.6) o[1]=A[1]; if(!onC&&Math.abs(o[0]-A[0])<tol*.6) o[0]=A[0]; } return o; }
+/* つまんだ点 A から、きれいに折れる「持っていく先」の候補を出す。折り線が、中心線の上にある紙の角をちょうど通る折り方 */
+function targets(A){ const out=[], bd=K.bounds(faces), L=bd.vmax-bd.vmin, add=(u,v)=>{ if(v>bd.vmin-1&&v<bd.vmax+1&&Math.hypot(u-A[0],v-A[1])>6&&!out.some(o=>Math.hypot(o[0]-u,o[1]-v)<5)) out.push([u,v]); };
+  const cs=[]; for(const q of verts()) if(q[0]<.5&&!cs.some(c=>Math.abs(c-q[1])<1)) cs.push(q[1]); cs.sort((a,b)=>a-b);
+  if(A[0]>1){ for(const c of cs){ const r=Math.hypot(A[0],A[1]-c); add(0,c+r); add(0,c-r); } add(0,A[1]); }   // ななめに中心線へ／まっすぐ中心線へ
+  else { add(0,A[1]+L/4); add(0,A[1]+L/3); add(0,A[1]+L/2); for(const q of verts()) if(q[1]>A[1]+6) add(0,q[1]); }   // 先を折り下げる
+  return out.filter(B=>!K.fold(faces,A,B).err).slice(0,5); }
+/* 指の位置 B を、折れる所へ寄せる。候補の近くなら候補へ。折れない位置で中心線の近くなら、中心線に沿っていちばん近い折れる所へ */
+function settle(A,B,cand){ const tol=snapTol*(fc.width/fc.clientWidth)/FS.s; let best=null,bd=tol*1.2;
+  for(const t of cand){ const d=Math.hypot(t[0]-B[0],t[1]-B[1]); if(d<bd){ bd=d; best=t; } }
+  if(best) return best; if(!K.fold(faces,A,B).err) return B;
+  if(B[0]<Math.max(tol*2,paper.pw*.25)) for(let k=0;k<=160;k++) for(const sg of (k?[-1,1]:[1])){ const t=[0,B[1]+sg*k*.5]; if(!K.fold(faces,A,t).err){
+      for(const c of cand) if(Math.hypot(c[0]-t[0],c[1]-t[1])<2) return c; return t; } }
+  return B; }
+/* 折る。きれいに折れたら形が変わる。折れなかった手や、厚くなりすぎたあとの手は、しわとして数える。合わせて100回で玉になる */
+function tryFold(A,B){ const r=K.fold(faces,A,B), over=faces.length>160||D.folds.length>=14, moved=Math.hypot(A[0]-B[0],A[1]-B[1])>=4;
+  if(moved&&!r.err&&!over){ history.push(faces); faces=r.faces; D.folds.push([A,B]); D.preset=''; changed(); hint('折れました。つづけて角をタップするか、「仕上げへ進む」を押します。'); }
   else if(moved){ D.crush++; const n=D.folds.length+D.crush; if(n>=CRUSH) becomeBall(); else { changed();
-      const why=over?'紙が厚くて、もうきれいには折れません。':d.err==='center'?'中心線をこえる折り方はできません（左右の紙が重なります）。':'そこでは折れません。';
-      hint(n<25?why+`しわが付きました（折り ${n}回）`:n<60?`しわだらけになってきました（折り ${n}回）`:`もう紙というより、かたまりです（折り ${n}回）`,true); } }
-  ghost=null; drawFold(); }
+      const why=over?'紙が厚くて、もうきれいには折れません。':r.err==='center'?'中心線をこえる折り方はできません（左右の紙が重なります）。':r.err==='tear'?'その折り方だと、紙が中心線で裂けてしまいます。':'そこでは折れません。';
+      hint(n<25?why+`しわが付きました（折り ${n}回）`:n<60?`しわだらけになってきました（折り ${n}回）`:`もう紙というより、かたまりです（折り ${n}回）`,true); } } }
+function onPaper(A){ return faces.some(f=>K.inside(f.p,A[0],A[1])||f.p.some(q=>Math.hypot(q[0]-A[0],q[1]-A[1])<1)); }
+fc.addEventListener('pointerdown',e=>{ if(busy) return; e.preventDefault(); snapTol=e.pointerType==='mouse'?12:26; const p=evToPaper(e), A=snap([p.u,p.v]), on=onPaper(A); if(!on&&!sel) return;
+  try{ fc.setPointerCapture(e.pointerId); }catch(_){} drag={A,B:A,side:p.side,id:e.pointerId,cx:e.clientX,cy:e.clientY,moved:false,off:!on}; ghost=null; drawFold(); });
+fc.addEventListener('pointermove',e=>{ if(!drag||e.pointerId!==drag.id) return; if(!drag.moved){ if(drag.off||Math.hypot(e.clientX-drag.cx,e.clientY-drag.cy)<10) return; drag.moved=true; sel=null; drag.T=targets(drag.A); }
+  const p=evToPaper(e); drag.B=settle(drag.A,snap([p.side===drag.side?p.u:0,p.v],true,drag.A),drag.T); const r=K.fold(faces,drag.A,drag.B); ghost=r.err?null:r; drawFold(); });
+function tap(e,d){ const p=evToPaper(e), pt=[p.u,p.v], tol=snapTol*(fc.width/fc.clientWidth)/FS.s;
+  if(sel){ let B=null, bd=tol*1.6; for(const t of selT){ const dd=Math.hypot(t[0]-pt[0],t[1]-pt[1]); if(dd<bd){ bd=dd; B=t; } }
+    if(!B){ if(Math.hypot(pt[0]-sel[0],pt[1]-sel[1])<tol*.8){ sel=null; hint(HINT0); return; }      // 同じ角をもう一度タップ＝選び直し
+      B=settle(sel,snap(pt,true,sel),selT); }
+    const over=faces.length>160||D.folds.length>=14;
+    if(K.fold(faces,sel,B).err&&!over){ hint(selT.length?'そこへは折れません。青い丸をタップします。':'そこへは折れません。ほかの角をタップします。',true); if(!selT.length) sel=null; return; }
+    const A=sel; sel=null; tryFold(A,B); return; }
+  if(d.off) return;
+  sel=d.A; selT=targets(sel); hint(selT.length?'次に、持っていく先（青い丸）をタップします。ほかの場所をタップしても折れます。':'次に、持っていく先をタップします。'); }
+function endDrag(e){ if(!drag||e.pointerId!==drag.id) return; const d=drag; drag=null; ghost=null;
+  if(d.moved) tryFold(d.A,d.B); else tap(e,d);
+  drawFold(); }
 fc.addEventListener('pointerup',endDrag); fc.addEventListener('pointercancel',endDrag);
 fc.addEventListener('touchstart',e=>e.preventDefault(),{passive:false}); fc.addEventListener('contextmenu',e=>e.preventDefault());
 function becomeBall(){ D.crush=CRUSH-D.folds.length; D.kind='ball'; D.v=22; D.ang=32; syncInputs(); changed(); requestAnimationFrame(fit); toast('100回折って、くしゃくしゃ玉になりました'); }
-function freshPaper(){ D.folds=[]; D.crush=0; D.preset=''; if(D.kind==='ball'){ D.kind='plane'; D.v=6; D.ang=5; syncInputs(); } refold(); changed(); requestAnimationFrame(fit); hint('紙を広げました。角や辺をつまんで、持っていきたい所までドラッグします。'); }
+function freshPaper(){ D.folds=[]; D.crush=0; D.preset=''; if(D.kind==='ball'){ D.kind='plane'; D.v=6; D.ang=5; syncInputs(); } refold(); changed(); requestAnimationFrame(fit); hint('紙を広げました。'+HINT0); }
 function hint(t,bad){ const h=$('#foldHint'); h.textContent=t; h.classList.toggle('bad',!!bad); }
 let busy=false;
 async function runPreset(p){ if(busy) return; busy=true; D.folds=[]; D.crush=0; refold(); D.preset=p.id; changed(); for(const f of p.folds){ await new Promise(r=>setTimeout(r,420)); const r=K.fold(faces,f[0],f[1]); if(r.err) break; history.push(faces); faces=r.faces; D.folds.push([f[0].slice(),f[1].slice()]); changed(); }
@@ -552,7 +601,7 @@ $('#reset2').addEventListener('click',freshPaper);
 $$('#tight button').forEach(b=>b.addEventListener('click',()=>{ D.tight=+b.dataset.t; changed(); }));
 for(const [id,key] of [['pH','h'],['pDih','dih'],['pElev','elev'],['pClip','clips'],['ringA','ringA'],['ringN','ringN'],['tV','v'],['tA','ang'],['tS','spin'],['eT','temp'],['eAlt','alt'],['eHead','head'],['eCross','cross'],['eGust','gust']])
   $('#'+id).addEventListener('input',e=>{ D[key]=+e.target.value; if(['v','ang','spin'].includes(key)){ renderLabels(); if(tab==='fly'&&(!flight||flight.done)) model.quaternion.setFromAxisAngle(new V3(0,0,1),D.ang*DEG); } else { changed(); if(tab==='fly') windVis(); } });
-$('#undo').addEventListener('click',()=>{ if(busy) return; if(D.crush>0){ D.crush--; changed(); hint('1手もどしました。'); return; } if(!history.length) return; faces=history.pop(); D.folds.pop(); D.preset=''; changed(); hint('1手もどしました。'); });
+$('#undo').addEventListener('click',()=>{ if(busy) return; sel=null; if(D.crush>0){ D.crush--; changed(); hint('1手もどしました。'); return; } if(!history.length) return; faces=history.pop(); D.folds.pop(); D.preset=''; changed(); hint('1手もどしました。'); });
 $('#reset').addEventListener('click',()=>{ if(busy) return; freshPaper(); });
 $$('.tabs button').forEach(b=>b.addEventListener('click',()=>setTab(b.dataset.tab)));
 $$('[data-go]').forEach(b=>b.addEventListener('click',()=>setTab(b.dataset.go)));
@@ -566,7 +615,7 @@ function tick(dt){ time+=dt;
     camera.position.copy(camPos); camera.up.set(0,1,0); camera.lookAt(camTgt); camera.fov=46; }
   else { if(orbit.auto) orbit.yaw+=dt*.25; const M=Math.max(pl.len,pl.b||0,pl.d||0)*(D.kind==='plane'?1.25:2.3), r=Math.max(M/(.728*camera.aspect*view.fw),.62*M/(.728*view.fh)); camera.position.set(Math.sin(orbit.yaw)*Math.cos(orbit.pitch)*r,Math.sin(orbit.pitch)*r,Math.cos(orbit.yaw)*Math.cos(orbit.pitch)*r);
     camera.up.set(0,1,0); camera.lookAt(D.kind==='ball'?0:-pl.len*.5-pl.cg[0],0,0); camera.fov=40; if(D.kind==='ring') model.rotation.x+=dt*1.5; else if(D.kind==='ball') model.rotation.y+=dt*.6; }
-  camera.updateProjectionMatrix(); lbTick();
+  camera.updateProjectionMatrix(); lbTick(); if(sel&&tab==='make') drawFold();
   if(!(tab==='make'&&D.kind==='plane')) renderer.render(tab==='fly'?field:hangar,camera); }
 function frame(now){ const dt=Math.min(.05,(now-last)/1000||0); last=now; tick(dt); requestAnimationFrame(frame); }
 

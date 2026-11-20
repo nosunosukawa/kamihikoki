@@ -53,7 +53,9 @@ function fold(faces,A,B){
     if(a.length>=3&&Math.abs(area(a))>.5) stay.push({p:a,flip:f.flip,z:f.z});
     if(b.length>=3&&Math.abs(area(b))>.5){
       const r=b.map(q=>{ const d=(q[0]-px)*nx+(q[1]-py)*ny; return [q[0]-2*d*nx,q[1]-2*d*ny]; });
-      for(const q of r) if(q[0]<-0.05) return {err:'center'};      // 中心線をこえる折りは、左右が重なるので不可
+      for(let i=0;i<r.length;i++){
+        if(r[i][0]<-0.05) return {err:'center'};                   // 中心線をこえる折りは、左右が重なるので不可
+        if(b[i][0]<.05&&r[i][0]>.5) return {err:'tear'}; }         // 中心線の上の紙が中心線から離れる折りは、左右がそこで裂けるので不可
       move.push({p:r,flip:!f.flip,z:2*zmax+1-f.z}); } }
   if(!move.length) return {err:'none'}; if(!stay.length) return {err:'all'};
   return {faces:rankZ(stay.concat(move)),line:{px,py,nx,ny}};
