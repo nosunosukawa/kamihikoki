@@ -173,13 +173,31 @@ function buildRing(paper,o,rho){
 function buildBall(paper,o){ const d=(o.tight?0.2:0.27)*Math.sqrt(paper.W*paper.L)*1e-3, m=paper.mass, I=.4*m*d*d/4;
   return {kind:'ball',m,cg:[0,0],I:[I,I,I,0],Iinv:[1/I,0,1/I,1/I],el:[],S:Math.PI*d*d/4,d,CD:0.6,Kp:0,Kv:0,elev:0,len:d,mac:d,cgPct:50}; }
 
+/* ---------- 地面効果 ---------- */
+/* 地面すれすれでは、地面が鏡になって翼のうずの「鏡像」ができ、翼の先から回りこむ流れ（吹きおろし）を弱める。
+   groundPhi(h/b) = 地面の近くでの「揚力にともなう抵抗」÷ 遠い所でのそれ（h=翼の高さ、b=翼の幅）。
+   だ円の揚力分布をもつ翼と、その鏡像のうず（プラントルの揚力線理論）から表を作って引く。h/b が 0.02〜0.25 の間で、ヴィーゼルスベルガーの式と 0.3% 以内で合う */
+const GE=(()=>{ const N=96, ye=[], yc=[], Gm=[], lx=[], ph=[];
+  for(let i=0;i<=N;i++) ye.push(-.5*Math.cos(Math.PI*i/N));                                  // 翼（幅1）を帯に分ける。端ほど細かく
+  for(let i=0;i<N;i++){ const y=-.5*Math.cos(Math.PI*(i+.5)/N); yc.push(y); Gm.push(Math.sqrt(1-4*y*y)); }
+  for(let k=0;k<=36;k++){ const x=.02*Math.pow(150,k/36), g2=4*x*x; let Ds=0, Di=0;          // h/b = 0.02 〜 3。鏡像は 2h 下にある
+    for(let i=0;i<N;i++){ let ws=0, wi=0; for(let j=0;j<N;j++){ const a=yc[i]-ye[j], b=yc[i]-ye[j+1]; ws+=Gm[j]*(1/a-1/b); wi+=Gm[j]*(a/(a*a+g2)-b/(b*b+g2)); }   // 自分のうずの吹きおろしと、鏡像のうずの吹き上げ
+      const dy=ye[i+1]-ye[i]; Ds+=Gm[i]*ws*dy; Di+=Gm[i]*wi*dy; }
+    lx.push(Math.log(x)); ph.push(1-Di/Ds); }
+  return {lx,ph}; })();
+function groundPhi(hb){ if(!(hb<3)) return 1-1/(32*hb*hb);                                    // 遠い所では、1/(32(h/b)²) だけ減る
+  const t=(Math.log(Math.max(hb,.02))-GE.lx[0])/(GE.lx[36]-GE.lx[0])*36, i=Math.min(35,Math.floor(t)); return GE.ph[i]+(GE.ph[i+1]-GE.ph[i])*(t-i); }
+/* 抵抗が φ 倍になるのは、見かけの縦横比が 1/φ 倍になるのと同じこと。その縦横比で、付着した流れの揚力の傾き Kp を出し直す。
+   up は機体の上向きの軸が、どれだけ真上を向いているか（−1〜1）。翼が地面と平行でないときは、その2乗で弱める（ここは目安） */
+function groundKp(pl,h,up){ const f=1-(1-groundPhi(Math.max(h,0)/pl.b))*up*up, AR=pl.AR/f; return 2*Math.PI*AR/(2+Math.sqrt(4+AR*AR)); }
+
 /* ---------- 空気の力 ---------- */
-/* vb: 機体から見た、空気に対する重心の速度。w: 機体の回る速さ。out に力 F とモーメント M（機体の向き）を入れる */
-function aero(pl,vb,w,out,env,fx){
+/* vb: 機体から見た、空気に対する重心の速度。w: 機体の回る速さ。out に力 F とモーメント M（機体の向き）を入れる。kp は地面の近くでの Kp（なければ機体の Kp） */
+function aero(pl,vb,w,out,env,fx,kp){
   const rho=env.rho, mu=env.mu;
   if(pl.kind==='ball'){ const V=Math.hypot(vb[0],vb[1],vb[2]), q=.5*rho*V*pl.S*pl.CD; out.F[0]=-q*vb[0]; out.F[1]=-q*vb[1]; out.F[2]=-q*vb[2];
     out.M[0]=-1e-7*w[0]; out.M[1]=-1e-7*w[1]; out.M[2]=-1e-7*w[2]; return out; }
-  let Fx=0,Fy=0,Fz=0,Mx=0,My=0,Mz=0; const de0=pl.elev, wp=env.warp, k3=pl.Kp/(2*Math.PI), fl=fx&&pl.flex;
+  let Fx=0,Fy=0,Fz=0,Mx=0,My=0,Mz=0; const de0=pl.elev, wp=env.warp, Kp=kp||pl.Kp, k3=Kp/(2*Math.PI), fl=fx&&pl.flex;
   for(const e of pl.el){
     const c=e.c, lx=e.le[0]; let n0=e.n[0], n1=e.n[1], n2=e.n[2], ly=e.le[1], lz=e.le[2], j=-1;
     if(fl&&e.fi!=null){ j=e.fi+(e.sd>0?0:fl.n); const a=fl.dih+fx.th[j]+(e.phi||0); n1=Math.cos(a); n2=-Math.sin(a)*e.sd; ly+=fx.y[j]*e.n[1]; lz+=fx.y[j]*e.n[2]; }   // しなったぶんだけ、翼の面が傾き、位置が上がる
@@ -191,7 +209,7 @@ function aero(pl,vb,w,out,env,fx){
     if(e.k===0){
       const de=wp?de0+(e.sd>0?wp[1]:wp[0]):de0;                    // 折りのゆがみ：左右で、後ろの縁の反りが少し違う
       const aw=1-sstep(.24,.56,Math.abs(al)), ae=al-e.tau*de*aw, s=Math.sin(ae), co=Math.cos(ae);
-      const cp=pl.Kp*s*Math.abs(co), cv=(pl.Kv+(1-aw)*Math.max(0,Math.PI-pl.Kv))*s*Math.abs(s);   // 付着した流れの力と、前縁のうずの力（ポルハムス）。失速後は、細長い翼でも板としての抵抗が出る
+      const cp=Kp*s*Math.abs(co), cv=(pl.Kv+(1-aw)*Math.max(0,Math.PI-pl.Kv))*s*Math.abs(s);   // 付着した流れの力と、前縁のうずの力（ポルハムス）。失速後は、細長い翼でも板としての抵抗が出る
       CN=CNMAX*Math.tanh((cp+cv)/CNMAX);                         // 板が出せる上限で、なだらかに頭打ち
       const fa=(Math.abs(cp)*.25+Math.abs(cv)*.5)/(Math.abs(cp)+Math.abs(cv)+1e-9), f=fa*aw+.45*(1-aw);
       fcp=Uc>=0?f:1-f;                                           // 力の中心。うずの力は弦の中ほど、失速すると後ろへ
@@ -266,10 +284,11 @@ const _vb=[0,0,0], _o={F:[0,0,0],M:[0,0,0]}, _fw=[0,0,0], _rel=[0,0,0], _wd=[0,0
 function step(st,pl,dt,env){
   const q=st.q, w=st.w, I=pl.I, Ii=pl.Iinv, wm=Math.hypot(pl.kind==='ring'?0:w[0],w[1],w[2]);   // 円筒は軸まわりの回転を数えない
   const nsub=pl.kind==='ball'?1:Math.min(10,1+Math.floor(wm/15)), h=dt/nsub;      // 速く回っているときは、刻みを細かくする
+  const kp=pl.kind==='plane'&&!env.noGround&&!env.noGE?groundKp(pl,st.p[1],1-2*(q[1]*q[1]+q[3]*q[3])):0; st.ge=kp?kp/pl.Kp:1;   // 地面効果（円筒と玉には入れていない）
   for(let s=0;s<nsub;s++){
     if(env.calm){ _rel[0]=st.v[0]; _rel[1]=st.v[1]; _rel[2]=st.v[2]; } else { env.windAt(st.p,st.t,_wd); _rel[0]=st.v[0]-_wd[0]; _rel[1]=st.v[1]-_wd[1]; _rel[2]=st.v[2]-_wd[2]; }
     const fx=pl.flex?(st.fx||(st.fx=newFlex(pl))):null;
-    qinv(q,_rel,_vb); aero(pl,_vb,w,_o,env,fx); if(fx) flexUpdate(pl,fx,_o.F,h); qrot(q,_o.F,_fw);
+    qinv(q,_rel,_vb); aero(pl,_vb,w,_o,env,fx,kp); if(fx) flexUpdate(pl,fx,_o.F,h); qrot(q,_o.F,_fw);
     st.v[0]+=_fw[0]/pl.m*h; st.v[1]+=(_fw[1]/pl.m-env.g)*h; st.v[2]+=_fw[2]/pl.m*h;
     st.p[0]+=st.v[0]*h; st.p[1]+=st.v[1]*h; st.p[2]+=st.v[2]*h;
     // 回転：I·dw/dt = M − w×(I·w)
@@ -302,5 +321,5 @@ function presets(paper){ const w=paper.pw;
 function applyFolds(paper,list){ let f=newPaper(paper); for(const [A,B,u] of list){ const r=fold(f,A,B,u); if(r.err) throw new Error('fold '+r.err); f=r.faces; } return f; }
 const toPrm=o=>({wl:o.wl||0,wa:(o.wa||0)*Math.PI/180,h:o.h,dih:o.dih*Math.PI/180,elev:o.elev*Math.PI/180,e:o.e||22,clips:o.clips||0,clipV:o.clipV||25});
 
-root.KH={G,FOLD_MM,DIST,disturb,rng,stack,centroid,newFlex,flexUpdate,MATERIALS,SIZES,makePaper,air,makeEnv,newPaper,fold,clipHalf,area,bounds,spanAt,inside,buildPlane,buildRing,buildBall,aero,analyze,launch,step,fly,qrot,qinv,presets,applyFolds,toPrm,mapper};
+root.KH={groundPhi,groundKp,G,FOLD_MM,DIST,disturb,rng,stack,centroid,newFlex,flexUpdate,MATERIALS,SIZES,makePaper,air,makeEnv,newPaper,fold,clipHalf,area,bounds,spanAt,inside,buildPlane,buildRing,buildBall,aero,analyze,launch,step,fly,qrot,qinv,presets,applyFolds,toPrm,mapper};
 })(typeof window!=='undefined'?window:globalThis);
