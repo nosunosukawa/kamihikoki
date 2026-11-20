@@ -202,7 +202,10 @@ function buildPlane(faces0,prm,paper,rho){
     for(let i=0;i<FN;i++){ const g=i<j?(sAt(j)-sAt(i))/EI[i]:0, thi=th0+g*dUm/2; Cth[i*FN+j]=thi; Cy[i*FN+j]=y0+thi*dUm/2; th0+=g*dUm; y0+=thi*dUm; } }
   let yg=0; for(let j=0;j<FN;j++) yg+=Cy[(FN-1)*FN+j]*(ms[j]+ma[j])*G;  // 自分の重さ（空気の見かけの重さこみ）での先端のたわみ → いちばん低い振動の速さ
   const phi=new Float64Array(FN); for(let i=NW-nw;i<NW;i++) phi[i]=wa;
-  const flex={n:FN,dih:prm.dih,phi,Cth,Cy,m:ms,tau:clamp(1/(1.243*Math.sqrt(G/Math.max(yg,1e-7))),.004,.3),span:(bd.umax-h)*1e-3};
+  // 付け根の折り目が負けたあと：付け根が「やわらかい蝶番」になる。付け根まわりの回りやすさ ch を、全部の帯の傾きとたわみに足す
+  const ch=BREAK_HINGE*dUm/EI[0], CthB=new Float64Array(FN*FN), CyB=new Float64Array(FN*FN);
+  for(let i=0;i<FN;i++) for(let j=0;j<FN;j++){ CthB[i*FN+j]=Cth[i*FN+j]+sAt(j)*ch; CyB[i*FN+j]=Cy[i*FN+j]+sAt(j)*ch*sAt(i); }
+  const flex={n:FN,dih:prm.dih,phi,Cth,Cy,CthB,CyB,EI0:EI[0],th1:th*1e-3,arm:Float64Array.from({length:FN},(_,i)=>sAt(i)),m:ms,tau:clamp(1/(1.243*Math.sqrt(G/Math.max(yg,1e-7))),.004,.3),span:(bd.umax-h)*1e-3};
   // 翼の幅は、立てた部分を上から見た長さで数える。立てた板は、翼の先から空気が回りこむのを減らす（端板の効き：縦横比が 1+1.9·高さ/幅 倍になる。ヘルナー）
   const b=2*((bd.umax-h-nw*dU)+nw*dU*cWa)*cG*1e-3, hW=nw*dU*Math.abs(Math.sin(wa))*1e-3, AR=b*b/S*(1+1.9*hW/b), Kp=2*Math.PI*AR/(2+Math.sqrt(4+AR*AR)), Kv=Math.PI*clamp((2.6-AR)/1.4,0,1);
   // 胴体（縦の板）を、前後に分ける
@@ -290,10 +293,16 @@ function aero(pl,vb,w,out,env,fx,kp){
 }
 /* ---------- 翼のしなり（片持ちばりの曲げ）。帯ごとの「空気の力 − 帯の重さ×機体の加速度」が翼を曲げる ---------- */
 function newFlex(pl){ const n=pl.flex.n*2; return {th:new Float64Array(n),y:new Float64Array(n),N:new Float64Array(n),L:new Float64Array(n)}; }
+/* 翼が折れる：付け根の曲げモーメント M から曲率 M/EI を出し、紙の表面ののび（曲率 × 1枚の厚さ/2。重ねた紙は貼っていないので1枚ずつ曲がる）が
+   BREAK_STRAIN を超えたら、付け根の折り目が負けたとする。そのあとは付け根が蝶番のように回り、翼が上へ折れたまま揚力を失う */
+const BREAK_STRAIN=.005, BREAK_HINGE=40;
 function flexUpdate(pl,fx,F,h){ const fl=pl.flex, n=fl.n, k=h<0?-h:Math.min(1,h/fl.tau);      // h<0 のときは、つり合いを求める反復（緩和係数 -h）
-  for(let sd=0;sd<2;sd++){ const o=sd*n, sg=sd?-1:1;
+  if(!fx.brk) fx.brk=[0,0];
+  for(let sd=0;sd<2;sd++){ const o=sd*n, sg=sd?-1:1, Cth=fx.brk[sd]?fl.CthB:fl.Cth, Cy=fx.brk[sd]?fl.CyB:fl.Cy;
     for(let i=0;i<n;i++){ const a=fl.dih+fx.th[o+i]+fl.phi[i]; fx.L[o+i]=fx.N[o+i]-fl.m[i]*(F[1]*Math.cos(a)-F[2]*Math.sin(a)*sg)/pl.m; }
-    for(let i=0;i<n;i++){ let t=0,y=0; for(let j=0;j<n;j++){ const L=fx.L[o+j]; t+=fl.Cth[i*n+j]*L; y+=fl.Cy[i*n+j]*L; }
+    if(h>0&&fl.arm){ let M=0; for(let j=0;j<n;j++) M+=fx.L[o+j]*fl.arm[j]; const e=Math.abs(M)/fl.EI0*fl.th1/2; if(e>(fx.emax||0)) fx.emax=e;   // 付け根の紙ののび
+      if(!fx.brk[sd]&&e>BREAK_STRAIN&&!fl.noBreak) fx.brk[sd]=M>0?1:-1; }                               // 1＝上へ折れた、-1＝下へ折れた
+    for(let i=0;i<n;i++){ let t=0,y=0; for(let j=0;j<n;j++){ const L=fx.L[o+j]; t+=Cth[i*n+j]*L; y+=Cy[i*n+j]*L; }
       const sm=(i+.5)*fl.span/n; t=clamp(t,-1.35,1.35); y=clamp(y,-.85*sm,.85*sm);          // はりの式は小さなたわみ用なので、折れ上がりきった所で止める
       fx.th[o+i]+=(t-fx.th[o+i])*k; fx.y[o+i]+=(y-fx.y[o+i])*k; } } }
 
@@ -362,6 +371,7 @@ function step(st,pl,dt,env){
     const n=Math.hypot(q[0],q[1],q[2],q[3]); q[0]/=n; q[1]/=n; q[2]/=n; q[3]/=n;
     st.t+=h;
   }
+  if(st.fx&&st.fx.brk&&(st.fx.brk[0]||st.fx.brk[1])&&st.broke==null){ st.broke=st.t; st.brokeSide=st.fx.brk.slice(); }
   if(st.fx){ let m=0; const n=pl.flex.n; for(let i=0;i<2*n;i++) if(Math.abs(st.fx.th[i])>Math.abs(m)) m=st.fx.th[i]; st.flex=m; if(Math.abs(m)>(st.flexMax||0)) st.flexMax=Math.abs(m); }
   if(!st.F){ st.F=[0,0,0]; st.rel=[0,0,0]; } st.F[0]=_fw[0]; st.F[1]=_fw[1]; st.F[2]=_fw[2]; st.rel[0]=_rel[0]; st.rel[1]=_rel[1]; st.rel[2]=_rel[2];   // 見直し用：空気が機体を押す力（地面の向き）と、空気に対する速さ
   st.alpha=Math.atan2(-_vb[1],Math.hypot(_vb[0],_vb[2])); st.speed=Math.hypot(_rel[0],_rel[1],_rel[2]); if(st.p[1]>st.hmax) st.hmax=st.p[1];

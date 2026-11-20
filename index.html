@@ -315,9 +315,9 @@ details.more[open] summary{margin-bottom:6px}
         <summary>空気と風を変える <small id="rhoCap" style="font-weight:500"></small></summary>
       <div class="sl"><label for="eT">気温</label><output id="eTo"></output><input id="eT" type="range" min="-10" max="40" step="1" value="20"></div>
       <div class="sl"><label for="eAlt">標高</label><output id="eAlto"></output><input id="eAlt" type="range" min="0" max="3000" step="100" value="0"></div>
-      <div class="sl"><label for="eHead">風（前後）</label><output id="eHeado"></output><input id="eHead" type="range" min="-5" max="5" step="0.1" value="0"></div>
-      <div class="sl"><label for="eCross">風（横）</label><output id="eCrosso"></output><input id="eCross" type="range" min="-3" max="3" step="0.1" value="0"></div>
-      <div class="sl"><label for="eGust">風の息（突風）</label><output id="eGusto"></output><input id="eGust" type="range" min="0" max="2" step="0.05" value="0"></div>
+      <div class="sl"><label for="eHead">風（前後）</label><output id="eHeado"></output><input id="eHead" type="range" min="-15" max="15" step="0.1" value="0"></div>
+      <div class="sl"><label for="eCross">風（横）</label><output id="eCrosso"></output><input id="eCross" type="range" min="-10" max="10" step="0.1" value="0"></div>
+      <div class="sl"><label for="eGust">風の息（突風）</label><output id="eGusto"></output><input id="eGust" type="range" min="0" max="6" step="0.05" value="0"></div>
       </details>
       <p class="cap" id="bestCap"></p>
       <details class="more" id="rankBox" open>
@@ -331,6 +331,7 @@ details.more[open] summary{margin-bottom:6px}
 翼のしなり：翼を、付け根で固定した片持ちばりとして曲げます。1枚の曲げこわさは D＝E·t³/12（E はヤング率、t は厚さ）。重ねて折った所は、枚数ぶんだけ曲げにくくなります。E はコピー用紙 2.7GPa（規格表の曲げこわさから逆算）、新聞紙 1.3GPa、画用紙 2.0GPa の目安です。<br>
 空気抵抗：両面の摩擦（層流・ブラジウスの式）に、前縁の厚み（重なりの枚数×紙の厚さ）にかかる動圧を足しています。紙の厚さは、折れる回数の限界（重なりが約3mmまで）にも使います。谷折りと山折りは、紙の重なる順番（表と裏）が変わるだけで、この計算では飛び方は同じです。「上だけ」にすると、線を引いた所のいちばん上の紙だけが折り返ります（その紙とつながっていて一緒に動くしかない紙と、上にのっている紙は、いっしょに動きます）。<br>
 翼の先を立てる（垂直フラップ）：立てた部分は横すべりを止めて向きを安定させ、翼の先から空気が回りこむのを減らします（縦横比が 1＋1.9×高さ÷翼の幅 倍。ヘルナーの式）。そのかわり、浮く力を出す翼の面積は減ります。<br>
+翼が折れる：付け根の曲げの強さから、付け根の紙の表面がどれだけのびるかを計算し、0.5% を超えたら折り目が負けたとします（紙が元に戻らなくなるのびの目安。実物では測っていません）。折れたあとは付け根が蝶番のように回り、翼が折れ上がって揚力を失います。新聞紙は速く投げるだけで、コピー用紙は向かい風 10m/s・突風 ±5m/s くらいから折れはじめます。<br>
 左右の反りの差・方向舵：右の翼の後ろの縁を左より多く反らせると、右の翼の浮く力が減って右へ傾き、右へ曲がります。胴体の後ろを右へ曲げると、後ろが左へ押されて機首が右を向きます。<br>
 円筒の回転：回っている輪に機首を上げる力がかかると、向きが横へずれていきます（ジャイロの歳差。ライフル弾が回転の向きへそれるのと同じ）。後ろから見て右回りなら右へ、左回りなら左へ曲がります。<br>
 翼の折り線の傾き：胴体と翼の境目の折り線を、紙の中心線に対して傾けます。後ろが深いと翼の面積が前に寄り、前が深いと後ろに寄ります。傾けた折り線を機体の前後の向きとして計算します。<br>
@@ -344,7 +345,7 @@ details.more[open] summary{margin-bottom:6px}
 <div class="toast" id="toast" role="status"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" integrity="sha512-dLxUelApnYxpLt6K2iomGngnHO83iUvZytA3YjDUCjT0HDOHKXnVYdf3hU4JjM8uEhxf9nD1/ey98U3t2vZ0qQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-<script src="core.js?v=12"></script>
+<script src="core.js?v=13"></script>
 <script>
 (()=>{
 'use strict';
@@ -386,7 +387,7 @@ function decode(h){ try{ const o=JSON.parse(decodeURIComponent(escape(atob(h.rep
     const num=(k,a,b)=>{ const v=Number(o[k]); if(Number.isFinite(v)) D[k]=clamp(v,a,b); };
     if(K.MATERIALS.some(m=>m.id===o.mat)) D.mat=o.mat; if(K.SIZES.some(s=>s.id===o.size)) D.size=o.size; if(['plane','ring','ball'].includes(o.kind)) D.kind=o.kind; if(LOCS.some(l=>l.id===o.loc)) D.loc=o.loc;
     num('crush',0,CRUSH); num('h',6,40); num('wk',-15,15); num('elevD',-4,4); num('rud',-10,10); num('dih',-5,30); num('elev',-5,25); num('clips',0,3); num('wl',0,4); D.wl=Math.round(D.wl); num('wa',-90,90); num('ringA',10,40); num('ringN',1,6); num('tight',0,2); D.tight=Math.round(D.tight); num('v',2,30); num('ang',-10,60); num('aim',-30,30); num('spin',-15,15);
-    num('dist',0,2); D.dist=Math.round(D.dist); num('temp',-10,40); num('alt',0,3000); num('head',-5,5); num('cross',-3,3); num('gust',0,2);
+    num('dist',0,2); D.dist=Math.round(D.dist); num('temp',-10,40); num('alt',0,3000); num('head',-15,15); num('cross',-10,10); num('gust',0,6);
     if(Array.isArray(o.folds)) D.folds=o.folds.slice(0,14).filter(f=>Array.isArray(f)&&(f.length===4||f.length===5)&&f.every(x=>Number.isFinite(Number(x)))).map(f=>[[clamp(+f[0],-400,400),clamp(+f[1],-100,600)],[clamp(+f[2],-400,400),clamp(+f[3],-100,600)],[1,2,3].includes(+f[4])?+f[4]:0]);
     return true; }catch(e){ return false; } }
 
@@ -721,7 +722,7 @@ function airArrows(p,rel,F){ if(!rel||!F){ airArrow.visible=forceArrow.visible=f
 let replay=null, rpSpeed=1;
 function recFrame(f,st){ if(!f.rec) return; const w=[0,0,0]; (f.env||env).windAt(st.p,st.t,w);
   const fr={t:st.t,p:st.p.slice(),q:st.q.slice(),a:st.alpha,sp:st.speed,F:st.F?st.F.slice():null,rel:st.rel?st.rel.slice():null,w};
-  if(st.fx) fr.fx={th:Float32Array.from(st.fx.th),y:Float32Array.from(st.fx.y)};
+  if(st.fx) fr.fx={th:Float32Array.from(st.fx.th),y:Float32Array.from(st.fx.y)}; fr.brk=st.broke!=null;
   f.rec.push(fr); f.nextRec=st.t+f.recDt;
   if(f.rec.length>6000){ f.rec=f.rec.filter((_,i)=>i%2===0); f.recDt*=2; } }                  // 長い飛行は、間引いて残す
 function frameAt(t){ const R=flight.rec; let lo=0, hi=R.length-1; while(hi-lo>1){ const m=(lo+hi)>>1; if(R[m].t<=t) lo=m; else hi=m; } return R[Math.abs(R[hi].t-t)<Math.abs(R[lo].t-t)?hi:lo]; }
@@ -732,7 +733,7 @@ function showFrame(fr,dt){ const f=flight; replay.fr=fr;
   camAt(fr.p,0); camPos.lerp(tmp,Math.min(1,(dt||1)*7)); camTgt.lerp(model.position,Math.min(1,(dt||1)*12));
   let fl=0; if(fr.fx) for(const v of fr.fx.th) if(Math.abs(v)>Math.abs(fl)) fl=v;
   const T=f.rec[f.rec.length-1].t; $('#rpT').value=Math.round(fr.t/T*1000);
-  $('#rpInfo').textContent=`${fmt(fr.t,2)}秒  迎角 ${Math.round(fr.a/DEG)}°  速さ ${fmt(fr.sp,1)}m/s`+(D.kind==='plane'&&fr.fx?`  しなり ${Math.round(Math.abs(fl)/DEG)}°`:''); }
+  $('#rpInfo').textContent=`${fmt(fr.t,2)}秒  迎角 ${Math.round(fr.a/DEG)}°  速さ ${fmt(fr.sp,1)}m/s`+(D.kind==='plane'&&fr.fx?`  しなり ${Math.round(Math.abs(fl)/DEG)}°`:'')+(fr.brk?'  ⚠ 付け根が折れた後':''); }
 function playReplay(dt){ const R=flight.rec; if(!R||!R.length) return; const T=R[R.length-1].t;
   if(replay.playing){ replay.t+=dt*rpSpeed; if(replay.t>=T){ replay.t=T; replay.playing=false; $('#rpPlay').textContent='▶ もう一度見る'; } }
   showFrame(frameAt(replay.t),dt); }
@@ -751,6 +752,7 @@ function simulate(dt){ const f=flight, st=f.st; if(!f.done){ f.acc+=dt*speedMul;
       if(f.iss&&(st.p[0]>10.9||st.p[0]<-.05||Math.abs(st.p[2])>1.95||st.p[1]<.05||st.p[1]>3.95)){ st.landed=true; f.wall=true; } } if(n>=1300) f.acc=0;
     f.vsum+=st.speed; f.vn++;
     if(f.n<3000&&(st.t>f.n*f.dtr)){ trailPos.set([st.p[0],st.p[1],st.p[2]],f.n*3); f.n++; trailGeo.setDrawRange(0,f.n); trailGeo.attributes.position.needsUpdate=true; f.path.push([Math.hypot(st.p[0],st.p[2])*(st.p[0]<0?-1:1),st.p[1]]); }
+    if(st.broke!=null&&!f.brokeShown){ f.brokeShown=true; toast('翼の付け根が風に負けて折れた！'); }
     if(st.landed||st.t>=f.tmax){ recFrame(f,st); f.done=true; finish(); } }
   else { f.after+=dt; if(replay){ playReplay(dt); return; } }
   model.position.set(st.p[0],st.p[1],st.p[2]); model.quaternion.set(st.q[1],st.q[2],st.q[3],st.q[0]); if(st.fx) bendMesh(st.fx); shadow.position.set(st.p[0],.02,st.p[2]); airArrows(st.p,st.rel,st.F);
@@ -778,7 +780,8 @@ let lastDist=null;
 function finish(){ const f=flight, st=f.st, dist=Math.hypot(st.p[0],st.p[2]), L=LOC(); throwBtn(false); const diff=lastDist==null?'':`前回より ${dist>=lastDist?'+':'−'}${fmt(Math.abs(dist-lastDist),1)}m。`; lastDist=dist;
   const R={dist,time:st.t,hmax:st.hmax,vavg:f.vsum/Math.max(1,f.vn),path:f.path,kind:D.kind,loc:L,name:D.kind==='plane'?(K.presets(paper).find(p=>p.id===D.preset)||{name:'自分で折った機体'}).name:KIND_NAME[D.kind]}; f.R=R;
   $('#rDist').textContent=fmt(dist,1); const pct=dist/REC_DIST*100;
-  $('#rLine').textContent=diff+`${L.name}から。滞空 ${fmt(st.t,2)}秒・最高 ${fmt(st.hmax,1)}m・平均 秒速${fmt(R.vavg,1)}m。`+(st.flexMax>.09?`翼のしなり 最大 ${fmt(st.flexMax*180/Math.PI,0)}°${st.flexMax>.6?'（折れ上がって揚力を失いました）':''}。`:'')+(f.dz?`今回のぶれ：角度 ${f.dz.dAng>=0?'+':''}${fmt(f.dz.dAng,1)}°・傾き ${f.dz.roll>=0?'+':''}${fmt(f.dz.roll/DEG,0)}°・向き ${f.dz.head>=0?'+':''}${fmt(f.dz.head/DEG,0)}°・速さ ${f.dz.dv>=0?'+':''}${fmt(f.dz.dv*100,0)}%。`:'')+(L.id==='yard'?`世界記録 ${REC_DIST}m の ${fmt(pct,pct<10?1:0)}%。`:'')+(f.wall?' 壁に当たりました。':L.id==='iss'?' 20秒で打ち切りました。':st.p[0]<-.5?' 後ろへ戻ってしまいました。':st.hmax>L.h+2.5&&dist<6?' 上がりすぎて失速しました。速さか反り上げを減らします。':'');
+  const brk=st.broke!=null?(()=>{ const b=st.brokeSide, sideTxt=b[0]&&b[1]?'両方の翼':b[0]?'右の翼':'左の翼', up=(b[0]||b[1])>0?'上':'下'; return `${fmt(st.broke,2)}秒で、${sideTxt}の付け根が風に負けて${up}へ折れました（付け根の紙ののび ${fmt(st.fx.emax*100,2)}%）。`; })():'';
+  $('#rLine').textContent=diff+brk+`${L.name}から。滞空 ${fmt(st.t,2)}秒・最高 ${fmt(st.hmax,1)}m・平均 秒速${fmt(R.vavg,1)}m。`+(st.flexMax>.09?`翼のしなり 最大 ${fmt(st.flexMax*180/Math.PI,0)}°${st.flexMax>.6?'（折れ上がって揚力を失いました）':''}。`:'')+(f.dz?`今回のぶれ：角度 ${f.dz.dAng>=0?'+':''}${fmt(f.dz.dAng,1)}°・傾き ${f.dz.roll>=0?'+':''}${fmt(f.dz.roll/DEG,0)}°・向き ${f.dz.head>=0?'+':''}${fmt(f.dz.head/DEG,0)}°・速さ ${f.dz.dv>=0?'+':''}${fmt(f.dz.dv*100,0)}%。`:'')+(L.id==='yard'?`世界記録 ${REC_DIST}m の ${fmt(pct,pct<10?1:0)}%。`:'')+(f.wall?' 壁に当たりました。':L.id==='iss'?' 20秒で打ち切りました。':st.p[0]<-.5?' 後ろへ戻ってしまいました。':st.hmax>L.h+2.5&&dist<6?' 上がりすぎて失速しました。速さか反り上げを減らします。':'');
   replay=null; $('#rpPlay').textContent='▶ もう一度見る'; $('#rpT').value=1000; $('#rp').hidden=!(f.rec&&f.rec.length>1); $('#rpInfo').textContent='';
   $('#result').classList.add('on'); $('#panel').scrollTop=0; drawChart(R); $('#shareX').href=xUrl(R);
   try{ const b=JSON.parse(localStorage.getItem('khlab_best')||'{}'), k=D.kind+'@'+D.loc; if(!(b[k]>=dist)){ b[k]=Math.round(dist*10)/10; localStorage.setItem('khlab_best',JSON.stringify(b)); } }catch(e){} rankNew=rankAdd(R); if(rankNew>=0) toast(rankNew===0?'この端末の1位！':`この端末で ${rankNew+1}位`); renderLabels(); }
