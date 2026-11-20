@@ -148,6 +148,14 @@ select{width:100%;margin-top:3px;padding:8px 8px;border:1.5px solid var(--ink);b
 .result .big{font-family:var(--mono);font-weight:600;font-size:46px;line-height:1;color:var(--red)}
 .result .big i{font-style:normal;font-size:18px;margin-left:4px;color:var(--ink)}
 .result p{font-size:13px;margin-top:4px}
+.goal{margin:8px 0 4px}
+.goal:empty{display:none}
+.goal .gl{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:12.5px;font-weight:700}
+.goal .gl b{font-family:var(--mono);font-weight:600;font-size:15px;color:var(--mat)}
+.goal.hit .gl span:first-child{color:var(--red)}
+.goal .gbar{height:9px;border:1.5px solid var(--ink);border-radius:99px;background:#fff;overflow:hidden;margin-top:3px}
+.goal .gbar i{display:block;height:100%;background:var(--pencil)}
+.result.on~#goalTop{display:none}
 #chart{width:100%;height:110px;display:block;margin:8px 0 2px;border:1px solid var(--line);border-radius:6px;background:#f7faf8}
 .tools{position:absolute;left:8px;top:8px;width:54px;display:none;flex-direction:column;gap:6px;pointer-events:none}
 .app[data-tab="make"][data-kind="plane"] .tools{display:flex}
@@ -285,6 +293,7 @@ details.more[open] summary{margin-bottom:6px}
     <div class="pane fly">
       <div class="result" id="result">
         <div class="big"><span id="rDist">0.0</span><i>m</i></div>
+        <div class="goal" id="goalR"></div>
         <p id="rLine"></p>
         <canvas id="chart" width="640" height="220" aria-label="横から見た飛び方"></canvas>
         <p class="cap" id="chartCap"></p>
@@ -307,6 +316,7 @@ details.more[open] summary{margin-bottom:6px}
         </div>
         </details>
       </div>
+      <div class="goal" id="goalTop"></div>
       <h2>投げ方</h2>
       <div class="sl"><label for="tV">投げる速さ</label><output id="tVo"></output><input id="tV" type="range" min="2" max="15" step="0.1" value="6"></div>
       <div class="sl"><label for="tA">投げる角度</label><output id="tAo"></output><input id="tA" type="range" min="-10" max="60" step="0.5" value="5"></div>
@@ -663,6 +673,7 @@ function renderLabels(){ if(typeof drawIcons==='function') queueMicrotask(drawIc
   app.dataset.kind=D.kind; $$('#kind button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.kind===D.kind))); $$('#tight button').forEach(b=>b.setAttribute('aria-pressed',String(+b.dataset.t===D.tight)));
   let best={}; try{ best=JSON.parse(localStorage.getItem('khlab_best')||'{}'); }catch(e){}
   if(typeof renderRank==='function') renderRank(); if(typeof rankTab!=='undefined'&&rankTab==='gc'&&GC){ const b=gcBoard(); if(b!==renderLabels._gb){ renderLabels._gb=b; setRankTab('gc'); } }
+ if(typeof renderGoal==='function') renderGoal();
   const bk=best[D.kind+'@'+D.loc]; $('#bestCap').textContent=bk?`${LOC().name}での${KIND_NAME[D.kind]}の自己ベスト ${fmt(bk,1)}m`:'';
 }
 function renderDiag(){
@@ -814,7 +825,7 @@ function playReplay(dt){ const R=flight.rec; if(!R||!R.length) return; const T=R
   if(replay.playing){ replay.t+=dt*rpSpeed; if(replay.t>=T){ replay.t=T; replay.playing=false; $('#rpPlay').textContent='▶ もう一度見る'; } }
   showFrame(frameAt(replay.t),dt); }
 function startReplay(){ if(!flight||!flight.done||!flight.rec||!flight.rec.length) return; if(!replay||!replay.playing){ FLOW.seeded=false; const T=flight.rec[flight.rec.length-1].t; replay={t:replay&&replay.t<T-.01?replay.t:0,playing:true}; $('#rpPlay').textContent='❚❚ 止める'; } else { replay.playing=false; $('#rpPlay').textContent='▶ 続きを見る'; } }
-function resetFlightView(){ const H=LOC().h; flight=null; replay=null; airArrow.visible=forceArrow.visible=weightArrow.visible=false; flowHide(); hudFlex(0,null); throwBtn(false); trailGeo.setDrawRange(0,0); $('#result').classList.remove('on'); model.position.set(0,H,0); aimQuat(); model.scale.setScalar(1); const a=D.aim*DEG; dirH.set(Math.cos(a),0,Math.sin(a));
+function resetFlightView(){ const H=LOC().h; flight=null; replay=null; if(goalHit!=null){ goalHit=null; renderGoal(); } airArrow.visible=forceArrow.visible=weightArrow.visible=false; flowHide(); hudFlex(0,null); throwBtn(false); trailGeo.setDrawRange(0,0); $('#result').classList.remove('on'); model.position.set(0,H,0); aimQuat(); model.scale.setScalar(1); const a=D.aim*DEG; dirH.set(Math.cos(a),0,Math.sin(a));
   camPos.set(-1.15*dirH.x,H+.38,-1.15*dirH.z); camTgt.set(.5*dirH.x,H,.5*dirH.z); hudSet(0,H,0,0,0); windVis(); shadow.position.set(0,.02,0); }
 function windVis(){ const w=[0,0,0]; env.windAt([3,3,-3.5],0,w); const sp=Math.hypot(w[0],w[2]); const c=sock.userData.c; c.rotation.set(0,0,0); c.rotation.y=Math.atan2(-w[2],w[0]); c.rotation.z=-clamp(1.45-sp*.5,0,1.45); }
 function hudFlex(th,rp){ $('#hFlexBox').hidden=D.kind!=='plane'; $('#hFlex').textContent=Math.round(Math.abs(th||0)/DEG); $('#hRp').hidden=!rp; if(rp) $('#hRpS').textContent=rp; }
@@ -875,6 +886,21 @@ window.KH_GC={ on(kind,p){ if(kind==='state'){ gcSigned=!!p.signedIn; if(rankTab
 function setRankTab(t){ rankTab=t; $$('#rankTab button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.r===t))); $('#rankList').hidden=t!=='me'; $('#gcBox').hidden=t!=='gc'; if(t==='gc'){ if(gcBoard()) gcAsk(); else renderGc(null); } }
 if(GC){ $('#rankTab').hidden=false; $$('#rankTab button').forEach(b=>b.addEventListener('click',()=>setRankTab(b.dataset.r))); GC.postMessage({op:'state'}); }
 function gcSubmit(dist){ const b=gcBoard(); if(!GC||!b||D.head||D.cross||D.gust||!gcSigned) return; GC.postMessage({op:'submit',board:b,score:Math.round(dist*10)}); }
+/* ================= 目標：自己ベストの、次に目指す距離（場所 × 作ったもの ごと）。校庭では、最後の目標が世界記録 ================= */
+const GOALS=[3,5,8,10,12,15,20,25,30,40,50,60,70,80,100,150,200,300,500,1000,2000,5000];
+const goalList=()=>D.loc==='yard'?GOALS.filter(g=>g<REC_DIST).concat(REC_DIST):GOALS;
+const goalName=g=>g===REC_DIST?`世界記録 ${g}m`:g+'m';
+function bestNow(){ try{ return +(JSON.parse(localStorage.getItem('khlab_best')||'{}')[D.kind+'@'+D.loc])||0; }catch(e){ return 0; } }
+function goalFor(best){ const L=goalList(); let i=0; while(i<L.length&&best>=L[i]) i++; return {prev:i?L[i-1]:0,next:i<L.length?L[i]:null}; }
+let goalHit=null;                                   // いまの1投で越えた目標（結果のカードに出す。次に投げるまで）
+function renderGoal(){ const best=bestNow(), g=goalFor(best), none=D.loc==='iss';      // 宇宙ステーションは部屋の長さで頭打ちなので、目標は出さない
+  for(const id of ['goalR','goalTop']){ const el=$('#'+id); if(!el) continue; el.textContent=''; el.classList.remove('hit'); if(none) continue;
+    const hit=id==='goalR'&&goalHit!=null, gl=document.createElement('div'), a=document.createElement('span'), b=document.createElement('span'); gl.className='gl';
+    if(g.next==null){ a.textContent=(hit?`目標 ${goalName(goalHit)} 達成！ `:'')+'用意した目標は、すべて越えました'; }
+    else { a.append(hit?`目標 ${goalName(goalHit)} 達成！ 次は `:best?'次の目標 ':'最初の目標 '); const nb=document.createElement('b'); nb.textContent=goalName(g.next); a.append(nb);
+      b.textContent=best?`自己ベスト ${fmt(best,1)}m・あと ${fmt(g.next-best,1)}m`:'まず1回投げてみます'; }
+    gl.append(a,b); el.append(gl); el.classList.toggle('hit',hit);
+    if(g.next!=null){ const bar=document.createElement('div'), i=document.createElement('i'); bar.className='gbar'; i.style.width=clamp((best-g.prev)/(g.next-g.prev)*100,0,100).toFixed(0)+'%'; bar.append(i); el.append(bar); } } }
 let lastDist=null;
 function finish(){ const f=flight, st=f.st, dist=Math.hypot(st.p[0],st.p[2]), L=LOC(); throwBtn(false); const diff=lastDist==null?'':`前回より ${dist>=lastDist?'+':'−'}${fmt(Math.abs(dist-lastDist),1)}m。`; lastDist=dist;
   const R={dist,time:st.t,hmax:st.hmax,vavg:f.vsum/Math.max(1,f.vn),path:f.path,kind:D.kind,loc:L,name:D.kind==='plane'?(K.presets(paper).find(p=>p.id===D.preset)||{name:'自分で折った機体'}).name:KIND_NAME[D.kind]}; f.R=R;
@@ -883,7 +909,10 @@ function finish(){ const f=flight, st=f.st, dist=Math.hypot(st.p[0],st.p[2]), L=
   $('#rLine').textContent=diff+brk+`${L.name}から。滞空 ${fmt(st.t,2)}秒・最高 ${fmt(st.hmax,1)}m・平均 秒速${fmt(R.vavg,1)}m。`+(st.flexMax>.09?`翼のしなり 最大 ${fmt(st.flexMax*180/Math.PI,0)}°${st.flexMax>.6?'（折れ上がって揚力を失いました）':''}。`:'')+(f.dz?`今回のぶれ：角度 ${f.dz.dAng>=0?'+':''}${fmt(f.dz.dAng,1)}°・傾き ${f.dz.roll>=0?'+':''}${fmt(f.dz.roll/DEG,0)}°・向き ${f.dz.head>=0?'+':''}${fmt(f.dz.head/DEG,0)}°・速さ ${f.dz.dv>=0?'+':''}${fmt(f.dz.dv*100,0)}%。`:'')+(L.id==='yard'?`世界記録 ${REC_DIST}m の ${fmt(pct,pct<10?1:0)}%。`:'')+(f.wall?' 壁に当たりました。':L.id==='iss'?' 20秒で打ち切りました。':st.p[0]<-.5?' 後ろへ戻ってしまいました。':st.hmax>L.h+2.5&&dist<6?' 上がりすぎて失速しました。速さか反り上げを減らします。':'');
   replay=null; flowHide(); $('#rpPlay').textContent='▶ もう一度見る'; $('#rpT').value=1000; $('#rp').hidden=!(f.rec&&f.rec.length>1); $('#rpInfo').textContent='';
   $('#result').classList.add('on'); $('#panel').scrollTop=0; drawChart(R); $('#shareX').href=xUrl(R);
-  try{ const b=JSON.parse(localStorage.getItem('khlab_best')||'{}'), k=D.kind+'@'+D.loc; if(!(b[k]>=dist)){ b[k]=Math.round(dist*10)/10; localStorage.setItem('khlab_best',JSON.stringify(b)); } }catch(e){} rankNew=rankAdd(R); gcSubmit(dist); if(rankNew>=0) toast(rankNew===0?'この端末の1位！':`この端末で ${rankNew+1}位`); renderLabels(); }
+  const g0=goalFor(bestNow());
+  try{ const b=JSON.parse(localStorage.getItem('khlab_best')||'{}'), k=D.kind+'@'+D.loc; if(!(b[k]>=dist)){ b[k]=Math.round(dist*10)/10; localStorage.setItem('khlab_best',JSON.stringify(b)); } }catch(e){}
+  goalHit=g0.next!=null&&bestNow()>=g0.next&&L.id!=='iss'?goalFor(bestNow()).prev:null;       // この1投で、次の目標を越えたか
+  rankNew=rankAdd(R); gcSubmit(dist); if(goalHit!=null) toast(`目標 ${goalName(goalHit)} 達成！`); else if(rankNew>=0) toast(rankNew===0?'この端末の1位！':`この端末で ${rankNew+1}位`); renderLabels(); }
 function drawChart(R,g,x,y,W,H){ const own=!g; if(own){ const c=$('#chart'); g=c.getContext('2d'); x=0; y=0; W=c.width; H=c.height; g.clearRect(0,0,W,H); }
   const xs=R.path.map(p=>p[0]), xmin=Math.min(0,...xs), xmax=Math.max(5,...xs), ymax=Math.max(3,R.hmax*1.1), pad=26, sx=(W-2*pad)/(xmax-xmin), sy=(H-2*pad)/ymax, s=Math.min(sx,sy*3), X=v=>x+pad+(v-xmin)*s, Y=v=>y+H-pad-v*Math.min(sy,s);
   g.strokeStyle='#c9d6cf'; g.lineWidth=1; g.font='500 16px "IBM Plex Mono",monospace'; g.fillStyle='#5b6b65'; g.textAlign='center';
