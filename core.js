@@ -363,6 +363,7 @@ function step(st,pl,dt,env){
     st.t+=h;
   }
   if(st.fx){ let m=0; const n=pl.flex.n; for(let i=0;i<2*n;i++) if(Math.abs(st.fx.th[i])>Math.abs(m)) m=st.fx.th[i]; st.flex=m; if(Math.abs(m)>(st.flexMax||0)) st.flexMax=Math.abs(m); }
+  if(!st.F){ st.F=[0,0,0]; st.rel=[0,0,0]; } st.F[0]=_fw[0]; st.F[1]=_fw[1]; st.F[2]=_fw[2]; st.rel[0]=_rel[0]; st.rel[1]=_rel[1]; st.rel[2]=_rel[2];   // 見直し用：空気が機体を押す力（地面の向き）と、空気に対する速さ
   st.alpha=Math.atan2(-_vb[1],Math.hypot(_vb[0],_vb[2])); st.speed=Math.hypot(_rel[0],_rel[1],_rel[2]); if(st.p[1]>st.hmax) st.hmax=st.p[1];
   const floor=pl.kind==='ball'?pl.d/2:pl.kind==='ring'?pl.D/2:0.015;
   if(st.p[1]<=floor&&!env.noGround){ st.p[1]=floor; st.landed=true; }

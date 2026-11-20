@@ -124,6 +124,12 @@ select{width:100%;margin-top:3px;padding:8px 8px;border:1.5px solid var(--ink);b
 .app[data-tab="fly"] .dzc{display:block}
 .result{display:none;border:2px solid var(--ink);border-radius:10px;padding:12px;margin:0 0 12px;background:#fff}
 .result.on{display:block}
+.rp{margin-top:10px;padding-top:10px;border-top:1.5px dashed var(--line)}
+.rprow{display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px;align-items:center;margin:6px 0}
+.rpgo{background:var(--ink);color:var(--paper);font-size:14px;padding:10px 12px}
+.rpl{font-size:12.5px;font-weight:700}
+.rpt{width:100%;height:30px;accent-color:var(--red);margin:4px 0}
+.rpinfo{font-family:var(--mono);font-size:12.5px;font-weight:600;background:#eef3ef;border-radius:6px;padding:4px 8px;min-height:1.6em}
 .result .big{font-family:var(--mono);font-weight:600;font-size:46px;line-height:1;color:var(--red)}
 .result .big i{font-style:normal;font-size:18px;margin-left:4px;color:var(--ink)}
 .result p{font-size:13px;margin-top:4px}
@@ -195,6 +201,8 @@ details.more[open] summary{margin-bottom:6px}
       <div><small>速さ</small><b id="hSpd">0.0</b><i>m/s</i></div>
       <div><small>迎角</small><b id="hAoa">0</b><i>°</i></div>
       <div><small>時間</small><b id="hTime">0.0</b><i>秒</i></div>
+      <div id="hFlexBox"><small>しなり</small><b id="hFlex">0</b><i>°</i></div>
+      <div id="hRp" hidden><small>見直し中</small><b id="hRpS">×1</b></div>
     </div>
     <button class="ff" id="ff">早送り ×1</button>
     <canvas class="dzc" id="dzc" width="240" height="290" aria-label="上から見た、投げる向きと風"></canvas>
@@ -264,6 +272,13 @@ details.more[open] summary{margin-bottom:6px}
         <p id="rLine"></p>
         <canvas id="chart" width="640" height="220" aria-label="横から見た飛び方"></canvas>
         <p class="cap" id="chartCap"></p>
+        <div class="rp" id="rp">
+          <div class="rprow"><button class="b rpgo" id="rpPlay">▶ もう一度見る</button><div class="seg" id="rpSp"><button data-s="1">ふつう</button><button data-s="0.5">½</button><button data-s="0.2">⅕</button></div></div>
+          <input class="rpt" id="rpT" type="range" min="0" max="1000" step="1" value="1000" aria-label="見直す時刻">
+          <div class="rprow"><span class="rpl">見る位置</span><div class="seg" id="camMode"><button data-c="back">後ろ</button><button data-c="side">横</button><button data-c="top">上</button></div></div>
+          <p class="rpinfo" id="rpInfo"></p>
+          <p class="cap">青い矢印＝機体に当たる空気の流れ。緑の矢印＝空気が機体を押す力（機体の重さと同じ力で 35cm）。翼のしなりは、形そのものに出ます。左下の図は翼に当たる風の角度、右上は風とぶれ。</p>
+        </div>
         <div class="btns">
           <a class="b x" id="shareX" target="_blank" rel="noopener" href="https://x.com/intent/post">結果をXに投稿</a>
           <button class="b wide" id="shareImg">記録の画像を保存・共有</button>
@@ -314,7 +329,7 @@ details.more[open] summary{margin-bottom:6px}
 <div class="toast" id="toast" role="status"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" integrity="sha512-dLxUelApnYxpLt6K2iomGngnHO83iUvZytA3YjDUCjT0HDOHKXnVYdf3hU4JjM8uEhxf9nD1/ey98U3t2vZ0qQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-<script src="core.js?v=11"></script>
+<script src="core.js?v=12"></script>
 <script>
 (()=>{
 'use strict';
@@ -667,32 +682,72 @@ function setTab(t){ if(flight&&!flight.done) flight=null; throwBtn(false); tab=t
 /* ================= 飛行 ================= */
 let flight=null; const camPos=new V3(), camTgt=new V3(), tmp=new V3(), dirH=new V3(1,0,0);
 function aimQuat(){ const q1=new THREE.Quaternion().setFromAxisAngle(new V3(0,0,1),D.ang*DEG), q0=new THREE.Quaternion().setFromAxisAngle(new V3(0,1,0),-D.aim*DEG); model.quaternion.copy(q0.multiply(q1)); }   // 投げる向き（上から見て右が正）と角度
-function resetFlightView(){ const H=LOC().h; flight=null; throwBtn(false); trailGeo.setDrawRange(0,0); $('#result').classList.remove('on'); model.position.set(0,H,0); aimQuat(); model.scale.setScalar(1); const a=D.aim*DEG; dirH.set(Math.cos(a),0,Math.sin(a));
+/* カメラの置き場所：後ろ（真後ろから追う）・横（左の真横）・上（真上から） */
+let camMode='back';
+function camAt(p,ang){ const far=D.kind==='ball'?1.9:1.2, cx=Math.cos(ang||0), sx=Math.sin(ang||0);
+  if(camMode==='side') tmp.set(p[0]+dirH.z*2.4, Math.max(.25,p[1]+.25), p[2]-dirH.x*2.4);
+  else if(camMode==='top') tmp.set(p[0]-dirH.x*.35, p[1]+3.2, p[2]-dirH.z*.35);
+  else tmp.set(p[0]-(dirH.x*cx-dirH.z*sx)*far, Math.max(.25,p[1]+.4), p[2]-(dirH.z*cx+dirH.x*sx)*far);   // 真後ろから追う（前は左へ 0.6m ずらしていて、まっすぐでも右へ流れて見えた）
+  return tmp; }
+/* 機体のまわりの矢印：青＝機体に当たる空気の流れ（機体に向かって）、緑＝空気が機体を押す力 */
+function fatArrow(color){ const g=new THREE.Group(), m=new THREE.MeshBasicMaterial({color,transparent:true,opacity:.92,depthTest:false});
+  const sh=new THREE.Mesh(new THREE.CylinderGeometry(1,1,1,10),m), hd=new THREE.Mesh(new THREE.ConeGeometry(1,1,14),m); sh.renderOrder=hd.renderOrder=5; g.add(sh); g.add(hd); g.userData={sh,hd};
+  g.setDirection=d=>{ g.quaternion.setFromUnitVectors(new V3(0,1,0),d); };
+  g.setLength=(L)=>{ const r=Math.max(.008,L*.035), h=Math.min(.12,L*.32); sh.scale.set(r,L-h,r); sh.position.y=(L-h)/2; hd.scale.set(r*2.8,h,r*2.8); hd.position.y=L-h/2; };
+  return g; }
+const airArrow=fatArrow(0x3fb8f0), forceArrow=fatArrow(0x22c55e);
+airArrow.visible=forceArrow.visible=false; field.add(airArrow); field.add(forceArrow);
+function airArrows(p,rel,F){ if(!rel||!F){ airArrow.visible=forceArrow.visible=false; return; }
+  const v=Math.hypot(rel[0],rel[1],rel[2]); if(v>.05){ const d=new V3(-rel[0]/v,-rel[1]/v,-rel[2]/v), L=Math.min(.9,.25+v*.06); airArrow.position.set(p[0]-d.x*(L+.08),p[1]-d.y*(L+.08),p[2]-d.z*(L+.08)); airArrow.setDirection(d); airArrow.setLength(L); airArrow.visible=true; } else airArrow.visible=false;
+  const f=Math.hypot(F[0],F[1],F[2]), W=pl.m*(LOC().g!=null?LOC().g:9.81)||1e-9, L2=Math.min(1.2,f/W*.35);
+  if(L2>.03){ forceArrow.position.set(p[0],p[1],p[2]); forceArrow.setDirection(new V3(F[0]/f,F[1]/f,F[2]/f)); forceArrow.setLength(L2); forceArrow.visible=true; } else forceArrow.visible=false; }
+/* ================= 見直し：記録した飛行を、好きな速さ・好きな時刻で再生する ================= */
+let replay=null, rpSpeed=1;
+function recFrame(f,st){ if(!f.rec) return; const w=[0,0,0]; (f.env||env).windAt(st.p,st.t,w);
+  const fr={t:st.t,p:st.p.slice(),q:st.q.slice(),a:st.alpha,sp:st.speed,F:st.F?st.F.slice():null,rel:st.rel?st.rel.slice():null,w};
+  if(st.fx) fr.fx={th:Float32Array.from(st.fx.th),y:Float32Array.from(st.fx.y)};
+  f.rec.push(fr); f.nextRec=st.t+f.recDt;
+  if(f.rec.length>6000){ f.rec=f.rec.filter((_,i)=>i%2===0); f.recDt*=2; } }                  // 長い飛行は、間引いて残す
+function frameAt(t){ const R=flight.rec; let lo=0, hi=R.length-1; while(hi-lo>1){ const m=(lo+hi)>>1; if(R[m].t<=t) lo=m; else hi=m; } return R[Math.abs(R[hi].t-t)<Math.abs(R[lo].t-t)?hi:lo]; }
+function showFrame(fr,dt){ const f=flight; replay.fr=fr;
+  model.position.set(fr.p[0],fr.p[1],fr.p[2]); model.quaternion.set(fr.q[1],fr.q[2],fr.q[3],fr.q[0]); bendMesh(fr.fx||null); shadow.position.set(fr.p[0],.02,fr.p[2]);
+  trailGeo.setDrawRange(0,Math.max(1,Math.min(f.n,Math.floor(fr.t/f.dtr)+1)));
+  hudSet(Math.hypot(fr.p[0],fr.p[2]),fr.p[1],fr.sp,fr.a/DEG,fr.t); lbAlpha=fr.a; { let m=0; if(fr.fx) for(const v of fr.fx.th) if(Math.abs(v)>Math.abs(m)) m=v; hudFlex(m,rpSpeed===1?'×1':rpSpeed===.5?'×½':'×⅕'); } airArrows(fr.p,fr.rel,fr.F);
+  camAt(fr.p,0); camPos.lerp(tmp,Math.min(1,(dt||1)*7)); camTgt.lerp(model.position,Math.min(1,(dt||1)*12));
+  let fl=0; if(fr.fx) for(const v of fr.fx.th) if(Math.abs(v)>Math.abs(fl)) fl=v;
+  const T=f.rec[f.rec.length-1].t; $('#rpT').value=Math.round(fr.t/T*1000);
+  $('#rpInfo').textContent=`${fmt(fr.t,2)}秒  迎角 ${Math.round(fr.a/DEG)}°  速さ ${fmt(fr.sp,1)}m/s`+(D.kind==='plane'&&fr.fx?`  しなり ${Math.round(Math.abs(fl)/DEG)}°`:''); }
+function playReplay(dt){ const R=flight.rec; if(!R||!R.length) return; const T=R[R.length-1].t;
+  if(replay.playing){ replay.t+=dt*rpSpeed; if(replay.t>=T){ replay.t=T; replay.playing=false; $('#rpPlay').textContent='▶ もう一度見る'; } }
+  showFrame(frameAt(replay.t),dt); }
+function startReplay(){ if(!flight||!flight.done||!flight.rec||!flight.rec.length) return; if(!replay||!replay.playing){ const T=flight.rec[flight.rec.length-1].t; replay={t:replay&&replay.t<T-.01?replay.t:0,playing:true}; $('#rpPlay').textContent='❚❚ 止める'; } else { replay.playing=false; $('#rpPlay').textContent='▶ 続きを見る'; } }
+function resetFlightView(){ const H=LOC().h; flight=null; replay=null; airArrow.visible=forceArrow.visible=false; throwBtn(false); trailGeo.setDrawRange(0,0); $('#result').classList.remove('on'); model.position.set(0,H,0); aimQuat(); model.scale.setScalar(1); const a=D.aim*DEG; dirH.set(Math.cos(a),0,Math.sin(a));
   camPos.set(-1.15*dirH.x,H+.38,-1.15*dirH.z); camTgt.set(.5*dirH.x,H,.5*dirH.z); hudSet(0,H,0,0,0); windVis(); shadow.position.set(0,.02,0); }
 function windVis(){ const w=[0,0,0]; env.windAt([3,3,-3.5],0,w); const sp=Math.hypot(w[0],w[2]); const c=sock.userData.c; c.rotation.set(0,0,0); c.rotation.y=Math.atan2(-w[2],w[0]); c.rotation.z=-clamp(1.45-sp*.5,0,1.45); }
+function hudFlex(th,rp){ $('#hFlexBox').hidden=D.kind!=='plane'; $('#hFlex').textContent=Math.round(Math.abs(th||0)/DEG); $('#hRp').hidden=!rp; if(rp) $('#hRpS').textContent=rp; }
 function hudSet(d,alt,v,aoa,t){ $('#hDist').textContent=fmt(d,1); $('#hAlt').textContent=fmt(Math.max(0,alt),1); $('#hSpd').textContent=fmt(v,1); $('#hAoa').textContent=Math.round(aoa); $('#hTime').textContent=fmt(t,1); }
 function throwBtn(on){ const b=$('#throw'); b.disabled=false; b.textContent=on?'投げ直す':'投げる'; }
 function throwIt(){ buildAll(); resetFlightView();
   const L=LOC(), sp=L.g!=null, dz=K.disturb(D.dist,Math.floor(Math.random()*1e9));
   const fenv=dz?Object.assign(K.makeEnv({tempC:D.temp,alt:D.alt,head:sp?0:D.head,cross:sp?0:D.cross,gust:sp?0:D.gust,turb:sp?0:dz.turb,seed:dz.tseed,warp:dz.warp,g:L.g,rho:L.rho,mu:L.mu}),{noGround:!!L.noGround}):env;
-  const st=K.launch(D.v,D.ang,L.h,{head:-D.aim*DEG,spin:D.kind==='ring'?D.spin:0,dz}); flight={st,env:fenv,dz,n:0,path:[[0,L.h]],done:false,after:0,acc:0,vsum:0,vn:0,dtr:L.h>20?.1:.02,tmax:L.tmax||300,iss:L.id==='iss'}; throwBtn(true); $('#panel').scrollTop=0; }
-function simulate(dt){ const f=flight, st=f.st; if(!f.done){ f.acc+=dt*speedMul; const h=.0005; let n=0; while(f.acc>=h&&n<1300&&!st.landed&&st.t<f.tmax){ K.step(st,pl,h,f.env||env); f.acc-=h; n++;
+  const st=K.launch(D.v,D.ang,L.h,{head:-D.aim*DEG,spin:D.kind==='ring'?D.spin:0,dz}); replay=null; flight={st,env:fenv,dz,rec:[],nextRec:0,recDt:1/60,n:0,path:[[0,L.h]],done:false,after:0,acc:0,vsum:0,vn:0,dtr:L.h>20?.1:.02,tmax:L.tmax||300,iss:L.id==='iss'}; throwBtn(true); $('#panel').scrollTop=0; }
+function simulate(dt){ const f=flight, st=f.st; if(!f.done){ f.acc+=dt*speedMul; const h=.0005; let n=0; while(f.acc>=h&&n<1300&&!st.landed&&st.t<f.tmax){ K.step(st,pl,h,f.env||env); f.acc-=h; n++; if(st.t>=f.nextRec) recFrame(f,st);
       if(f.iss&&(st.p[0]>10.9||st.p[0]<-.05||Math.abs(st.p[2])>1.95||st.p[1]<.05||st.p[1]>3.95)){ st.landed=true; f.wall=true; } } if(n>=1300) f.acc=0;
     f.vsum+=st.speed; f.vn++;
     if(f.n<3000&&(st.t>f.n*f.dtr)){ trailPos.set([st.p[0],st.p[1],st.p[2]],f.n*3); f.n++; trailGeo.setDrawRange(0,f.n); trailGeo.attributes.position.needsUpdate=true; f.path.push([Math.hypot(st.p[0],st.p[2])*(st.p[0]<0?-1:1),st.p[1]]); }
-    if(st.landed||st.t>=f.tmax){ f.done=true; finish(); } }
-  else f.after+=dt;
-  model.position.set(st.p[0],st.p[1],st.p[2]); model.quaternion.set(st.q[1],st.q[2],st.q[3],st.q[0]); if(st.fx) bendMesh(st.fx); shadow.position.set(st.p[0],.02,st.p[2]);
+    if(st.landed||st.t>=f.tmax){ recFrame(f,st); f.done=true; finish(); } }
+  else { f.after+=dt; if(replay){ playReplay(dt); return; } }
+  model.position.set(st.p[0],st.p[1],st.p[2]); model.quaternion.set(st.q[1],st.q[2],st.q[3],st.q[0]); if(st.fx) bendMesh(st.fx); shadow.position.set(st.p[0],.02,st.p[2]); airArrows(st.p,st.rel,st.F);
   const vh=Math.hypot(st.v[0],st.v[2]); if(vh>.4&&!f.done){ tmp.set(st.v[0]/vh,0,st.v[2]/vh); dirH.lerp(tmp,Math.min(1,dt*2.5)).normalize(); }
-  const far=D.kind==='ball'?1.9:1.2, ang=f.done?f.after*.25:0, cx=Math.cos(ang), sx=Math.sin(ang);
-  tmp.set(st.p[0]-(dirH.x*cx-dirH.z*sx)*far, Math.max(.25,st.p[1]+.4), st.p[2]-(dirH.z*cx+dirH.x*sx)*far);   // 真後ろから追う（前は左へ 0.6m ずらしていて、まっすぐでも右へ流れて見えた）
+  camAt(st.p,f.done&&camMode==='back'?f.after*.25:0);
   camPos.lerp(tmp,Math.min(1,dt*7)); camTgt.lerp(model.position,Math.min(1,dt*12));
-  hudSet(Math.hypot(st.p[0],st.p[2]),st.p[1],st.speed,st.alpha/DEG,st.t); lbAlpha=st.alpha; }
+  hudSet(Math.hypot(st.p[0],st.p[2]),st.p[1],st.speed,st.alpha/DEG,st.t); hudFlex(st.flex,null); lbAlpha=st.alpha; }
 let lastDist=null;
 function finish(){ const f=flight, st=f.st, dist=Math.hypot(st.p[0],st.p[2]), L=LOC(); throwBtn(false); const diff=lastDist==null?'':`前回より ${dist>=lastDist?'+':'−'}${fmt(Math.abs(dist-lastDist),1)}m。`; lastDist=dist;
   const R={dist,time:st.t,hmax:st.hmax,vavg:f.vsum/Math.max(1,f.vn),path:f.path,kind:D.kind,loc:L,name:D.kind==='plane'?(K.presets(paper).find(p=>p.id===D.preset)||{name:'自分で折った機体'}).name:KIND_NAME[D.kind]}; f.R=R;
   $('#rDist').textContent=fmt(dist,1); const pct=dist/REC_DIST*100;
   $('#rLine').textContent=diff+`${L.name}から。滞空 ${fmt(st.t,2)}秒・最高 ${fmt(st.hmax,1)}m・平均 秒速${fmt(R.vavg,1)}m。`+(st.flexMax>.09?`翼のしなり 最大 ${fmt(st.flexMax*180/Math.PI,0)}°${st.flexMax>.6?'（折れ上がって揚力を失いました）':''}。`:'')+(f.dz?`今回のぶれ：角度 ${f.dz.dAng>=0?'+':''}${fmt(f.dz.dAng,1)}°・傾き ${f.dz.roll>=0?'+':''}${fmt(f.dz.roll/DEG,0)}°・向き ${f.dz.head>=0?'+':''}${fmt(f.dz.head/DEG,0)}°・速さ ${f.dz.dv>=0?'+':''}${fmt(f.dz.dv*100,0)}%。`:'')+(L.id==='yard'?`世界記録 ${REC_DIST}m の ${fmt(pct,pct<10?1:0)}%。`:'')+(f.wall?' 壁に当たりました。':L.id==='iss'?' 20秒で打ち切りました。':st.p[0]<-.5?' 後ろへ戻ってしまいました。':st.hmax>L.h+2.5&&dist<6?' 上がりすぎて失速しました。速さか反り上げを減らします。':'');
+  replay=null; $('#rpPlay').textContent='▶ もう一度見る'; $('#rpT').value=1000; $('#rp').hidden=!(f.rec&&f.rec.length>1); $('#rpInfo').textContent='';
   $('#result').classList.add('on'); $('#panel').scrollTop=0; drawChart(R); $('#shareX').href=xUrl(R);
   try{ const b=JSON.parse(localStorage.getItem('khlab_best')||'{}'), k=D.kind+'@'+D.loc; if(!(b[k]>=dist)){ b[k]=Math.round(dist*10)/10; localStorage.setItem('khlab_best',JSON.stringify(b)); } }catch(e){} renderLabels(); }
 function drawChart(R,g,x,y,W,H){ const own=!g; if(own){ const c=$('#chart'); g=c.getContext('2d'); x=0; y=0; W=c.width; H=c.height; g.clearRect(0,0,W,H); }
@@ -737,12 +792,12 @@ function drawDz(){ const c=$('#dzc'); if(!c||tab!=='fly') return; const g=c.getC
   if(D.aim) arrow(a,R*.85,'rgba(255,255,255,.7)',3,[5,5]);
   arrow(ah,R*.85,'#E5482D',7);
   // いまの風（機体のいる所。投げる前は手もとの風）。空気が流れていく向きに矢印。1m/s ≈ 26px
-  const w=[0,0,0], p=f?f.st.p:[0,LOC().h,0]; (f&&f.env||env).windAt(p,f?f.st.t:0,w); const sp=Math.hypot(w[0],w[2]);
+  let w=[0,0,0]; const p=f?f.st.p:[0,LOC().h,0]; if(replay&&replay.fr) w=replay.fr.w; else (f&&f.env||env).windAt(p,f?f.st.t:0,w); const sp=Math.hypot(w[0],w[2]);
   if(sp>.02){ const L=Math.min(150,sp*45+24), wa=Math.atan2(w[2],w[0]), sx=Math.sin(wa), sy=-Math.cos(wa), x0=cx-sx*L*.5, y0=cy-50-sy*L*.5, x1=x0+sx*L, y1=y0+sy*L;
     g.strokeStyle='#5fd0ff'; g.fillStyle='#5fd0ff'; g.lineWidth=8; g.beginPath(); g.moveTo(x0,y0); g.lineTo(x1,y1); g.stroke(); const h=20, an=Math.atan2(sy,sx);
     g.beginPath(); g.moveTo(x1,y1); g.lineTo(x1-Math.cos(an-.5)*h,y1-Math.sin(an-.5)*h); g.lineTo(x1-Math.cos(an+.5)*h,y1-Math.sin(an+.5)*h); g.closePath(); g.fill(); }
   const fw=w[0]*Math.cos(a)+w[2]*Math.sin(a), sd=-w[0]*Math.sin(a)+w[2]*Math.cos(a);   // 投げる向きに沿った成分と、右向きの成分
-  const t1=sp<.02?'風 なし':(Math.abs(fw)>=Math.abs(sd)?(fw<0?'向かい風 ':'追い風 '):(sd>0?'左から ':'右から '))+(sp<.02?'':fmt(sp,1)+'m/s');
+  const t1=sp<.05?'風 なし':(Math.abs(fw)>=Math.abs(sd)?(fw<0?'向かい風 ':'追い風 '):(sd>0?'左から ':'右から '))+(sp<.05?'':fmt(sp,1)+'m/s');
   g.font='700 28px sans-serif'; g.fillStyle='#5fd0ff'; g.fillText(t1,cx,cy+56);
   g.fillStyle='#fff'; g.font='700 24px sans-serif';
   g.fillText(dz?`向き${dz.head>0?'左':dz.head<0?'右':''}${fmt(Math.abs(dz.head/DEG),0)}° 傾き${dz.roll>0?'右':dz.roll<0?'左':''}${fmt(Math.abs(dz.roll/DEG),0)}°`:(D.dist?'ぶれは投げると出る':'ぶれ なし'),cx,cy+88);
@@ -786,7 +841,7 @@ $$('#kind button').forEach(b=>b.addEventListener('click',()=>{ if(b.dataset.kind
 $('#reset2').addEventListener('click',freshPaper);
 $$('#tight button').forEach(b=>b.addEventListener('click',()=>{ D.tight=+b.dataset.t; changed(); }));
 for(const [id,key] of [['pH','h'],['pWk','wk'],['pElevD','elevD'],['pRud','rud'],['pDih','dih'],['pElev','elev'],['pClip','clips'],['pWl','wl'],['pWa','wa'],['ringA','ringA'],['ringN','ringN'],['tV','v'],['tA','ang'],['tH','aim'],['tS','spin'],['eT','temp'],['eAlt','alt'],['eHead','head'],['eCross','cross'],['eGust','gust']])
-  $('#'+id).addEventListener('input',e=>{ D[key]=+e.target.value; if(tab==='fly'&&['h','wk','elevD','rud','dih','elev','clips','wl','wa'].includes(key)&&flight&&!flight.done){ flight=null; throwBtn(false); } if(['v','ang','aim','spin'].includes(key)){ renderLabels(); renderDiag(); if(tab==='fly'&&(!flight||flight.done)){ if(key==='aim') resetFlightView(); else aimQuat(); } } else { changed(); if(tab==='fly') windVis(); } });
+  $('#'+id).addEventListener('input',e=>{ D[key]=+e.target.value; if(tab==='fly'&&['h','wk','elevD','rud','dih','elev','clips','wl','wa'].includes(key)&&flight){ if(!flight.done){ flight=null; throwBtn(false); } else { flight.rec=null; replay=null; $('#rp').hidden=true; } } if(['v','ang','aim','spin'].includes(key)){ renderLabels(); renderDiag(); if(tab==='fly'&&(!flight||flight.done)){ if(key==='aim') resetFlightView(); else aimQuat(); } } else { changed(); if(tab==='fly') windVis(); } });
 $('#undo').addEventListener('click',()=>{ if(busy) return; sel=null; if(D.crush>0){ D.crush--; changed(); hint('1手もどしました。'); return; } if(!history.length) return; faces=history.pop(); D.folds.pop(); D.preset=''; changed(); hint('1手もどしました。'); });
 $('#reset').addEventListener('click',()=>{ if(busy) return; freshPaper(); });
 $$('#dist button').forEach(b=>b.addEventListener('click',()=>{ D.dist=+b.dataset.d; renderLabels(); }));
@@ -901,13 +956,17 @@ for(const e of $$('.sl input[type=range]')){
   c.appendChild(mk('−',-1,lab+'を少し下げる')); c.appendChild(r); c.appendChild(mk('+',1,lab+'を少し上げる'));
   slTicks(e); slPaint(e); e._k=Math.round((+e.value-+e.min)/(e._minor||+e.step));
   e.addEventListener('input',()=>slUp(e)); }
-$('#throw').addEventListener('click',throwIt); $('#shareImg').addEventListener('click',shareImg); $('#shareUrl').addEventListener('click',shareUrl);
+$('#throw').addEventListener('click',throwIt);
+$('#rpPlay').addEventListener('click',startReplay);
+$('#rpT').addEventListener('input',e=>{ if(!flight||!flight.done||!flight.rec) return; const T=flight.rec[flight.rec.length-1].t; replay={t:+e.target.value/1000*T,playing:false}; $('#rpPlay').textContent='▶ 続きを見る'; });
+$$('#rpSp button').forEach(b=>{ b.setAttribute('aria-pressed',String(+b.dataset.s===rpSpeed)); b.addEventListener('click',()=>{ rpSpeed=+b.dataset.s; $$('#rpSp button').forEach(x=>x.setAttribute('aria-pressed',String(x===b))); }); });
+$$('#camMode button').forEach(b=>{ b.setAttribute('aria-pressed',String(b.dataset.c===camMode)); b.addEventListener('click',()=>{ camMode=b.dataset.c; $$('#camMode button').forEach(x=>x.setAttribute('aria-pressed',String(x===b))); }); }); $('#shareImg').addEventListener('click',shareImg); $('#shareUrl').addEventListener('click',shareUrl);
 addEventListener('resize',fit); addEventListener('orientationchange',()=>setTimeout(fit,250));
 
 /* ================= 毎フレーム ================= */
 let last=0, time=0;
 function tick(dt){ time+=dt; if(tab==='fly'&&((time*20|0)!==((time-dt)*20|0))) drawDz();
-  if(tab==='fly'){ if(flight) simulate(dt); else { const H=LOC().h; camPos.lerp(tmp.set(-1.15,H+.38,.95),Math.min(1,dt*4)); camTgt.lerp(tmp.set(.5,H,0),Math.min(1,dt*4)); }
+  if(tab==='fly'){ if(flight) simulate(dt); else { const H=LOC().h; camPos.lerp(tmp.set(-1.15*dirH.x,H+.38,-1.15*dirH.z),Math.min(1,dt*4)); camTgt.lerp(tmp.set(.5*dirH.x,H,.5*dirH.z),Math.min(1,dt*4)); }
     camera.position.copy(camPos); camera.up.set(0,1,0); camera.lookAt(camTgt); camera.fov=46; }
   else { if(orbit.auto) orbit.yaw+=dt*.25; const M=Math.max(pl.len,pl.b||0,pl.d||0)*(D.kind==='plane'?1.5:2.3), r=Math.max(M/(.728*camera.aspect*view.fw),.62*M/(.728*view.fh)); const tx=D.kind==='ball'?0:-((pl.bd?pl.bd.vmin*1e-3:0)+pl.len*.5)-pl.cg[0];      // 機体のまん中（折ったあとの機首から測る）
     camera.position.set(tx+Math.sin(orbit.yaw)*Math.cos(orbit.pitch)*r,Math.sin(orbit.pitch)*r,Math.cos(orbit.yaw)*Math.cos(orbit.pitch)*r);
