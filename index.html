@@ -124,6 +124,16 @@ select{width:100%;margin-top:3px;padding:8px 8px;border:1.5px solid var(--ink);b
 .app[data-tab="fly"] .dzc{display:block}
 .result{display:none;border:2px solid var(--ink);border-radius:10px;padding:12px;margin:0 0 12px;background:#fff}
 .result.on{display:block}
+.rank{list-style:none;margin:6px 0 4px;padding:0;counter-reset:r}
+.rank li{display:grid;grid-template-columns:2.2em minmax(0,1fr) auto;gap:2px 8px;align-items:center;padding:7px 4px;border-bottom:1px solid var(--line);counter-increment:r}
+.rank li::before{content:counter(r);font-family:var(--mono);font-weight:600;font-size:17px;text-align:center;grid-row:1/3}
+.rank li:nth-child(1)::before{color:#c8952a}.rank li:nth-child(2)::before{color:#8c98a4}.rank li:nth-child(3)::before{color:#b0703c}
+.rank li.new{background:#fff6dc}
+.rank .rd{font-family:var(--mono);font-weight:600;font-size:16px;color:var(--red)}
+.rank .rs{grid-column:2;font-size:11.5px;color:#5b6b65}
+.rank .rb{grid-column:3;grid-row:1/3;padding:6px 8px;font-size:12px}
+.rank .empty{display:block;font-size:12.5px;color:#5b6b65;padding:8px 2px}
+.rank .empty::before{content:none}
 .rp{margin-top:10px;padding-top:10px;border-top:1.5px dashed var(--line)}
 .rprow{display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px;align-items:center;margin:6px 0}
 .rpgo{background:var(--ink);color:var(--paper);font-size:14px;padding:10px 12px}
@@ -310,6 +320,11 @@ details.more[open] summary{margin-bottom:6px}
       <div class="sl"><label for="eGust">風の息（突風）</label><output id="eGusto"></output><input id="eGust" type="range" min="0" max="2" step="0.05" value="0"></div>
       </details>
       <p class="cap" id="bestCap"></p>
+      <details class="more" id="rankBox" open>
+        <summary>ランキング（この端末） <small id="rankFor" style="font-weight:500"></small></summary>
+        <ol class="rank" id="rankList"></ol>
+        <p class="cap">投げた場所と、作ったもの（飛行機・円筒・玉）ごとの上位10回。「この機体で」を押すと、その時の紙・折り方・仕上げ・投げ方に戻ります。記録はこの端末の中だけに残り、外へは送りません。</p>
+      </details>
       <div class="stick"><button class="b go" id="throw">投げる</button></div>
     </div>
     <p class="foot">計算のしくみ：折った紙の重なりから重心と慣性を出し、翼と胴体を細い帯に分けて、帯ごとの空気の力を足し合わせています（翼素法）。左下の流れの絵は、翼を真横から見て、まわりの空気の動きを解いたものです（格子ボルツマン法）。白い線が翼、オレンジと青は、翼の上と下で空気が渦を巻いている所（回る向きが逆）。傾きが大きくなると、上の帯が翼からはがれて乱れます（失速）。絵は見るためのもので、飛距離の計算には使っていません。<br>
@@ -630,6 +645,7 @@ function renderLabels(){ if(typeof drawIcons==='function') queueMicrotask(drawIc
   $('#mkPlane').hidden=D.kind!=='plane'; $('#mkRing').hidden=D.kind!=='ring'; $('#mkBall').hidden=D.kind!=='ball'; $('#tnPlane').hidden=D.kind!=='plane';
   app.dataset.kind=D.kind; $$('#kind button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.kind===D.kind))); $$('#tight button').forEach(b=>b.setAttribute('aria-pressed',String(+b.dataset.t===D.tight)));
   let best={}; try{ best=JSON.parse(localStorage.getItem('khlab_best')||'{}'); }catch(e){}
+  if(typeof renderRank==='function') renderRank();
   const bk=best[D.kind+'@'+D.loc]; $('#bestCap').textContent=bk?`${LOC().name}での${KIND_NAME[D.kind]}の自己ベスト ${fmt(bk,1)}m`:'';
 }
 function renderDiag(){
@@ -674,7 +690,7 @@ function setPaper(){ paper=K.makePaper(D.size,D.mat); $('#pH').max=Math.round(pa
 async function bestPlane(){ if(busy) return; D.size='a3'; D.mat='draw'; D.kind='plane'; setPaper(); syncInputs(); const p=K.presets(paper)[0];
   await runPreset(Object.assign({},p,{prm:{h:26,dih:-2,elev:1.5,clips:2}})); D.v=15; D.ang=4; syncInputs(); changed();
   hint('最強型：A3の画用紙のやり型に、クリップ2個。秒速15m・上向き4°で投げます。'); }
-function setTab(t){ if(flight&&!flight.done) flight=null; throwBtn(false); tab=t;
+function setTab(t){ if(flight&&!flight.done) flight=null; throwBtn(false); tab=t; airArrow.visible=forceArrow.visible=false;
   { const tp=$('#tnPlane'), tune=$('.pane.tune'); if(t==='fly') $('#flyTuneSlot').appendChild(tp); else if(tp.parentNode!==tune) tune.insertBefore(tp,tune.firstChild); }   /* 仕上げのつまみを、飛ばす画面でも使う */ app.dataset.tab=t; $$('.tabs button').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.tab===t)));
   const sc=t==='fly'?field:hangar; if(model.parent!==sc){ sc.add(model); } if(t!=='fly'){ model.position.set(0,0,0); model.quaternion.set(0,0,0,1); model.scale.setScalar(1); orbit.auto=true; }
   else resetFlightView(); $('#panel').scrollTop=0; requestAnimationFrame(fit); }
@@ -721,7 +737,7 @@ function playReplay(dt){ const R=flight.rec; if(!R||!R.length) return; const T=R
   if(replay.playing){ replay.t+=dt*rpSpeed; if(replay.t>=T){ replay.t=T; replay.playing=false; $('#rpPlay').textContent='▶ もう一度見る'; } }
   showFrame(frameAt(replay.t),dt); }
 function startReplay(){ if(!flight||!flight.done||!flight.rec||!flight.rec.length) return; if(!replay||!replay.playing){ const T=flight.rec[flight.rec.length-1].t; replay={t:replay&&replay.t<T-.01?replay.t:0,playing:true}; $('#rpPlay').textContent='❚❚ 止める'; } else { replay.playing=false; $('#rpPlay').textContent='▶ 続きを見る'; } }
-function resetFlightView(){ const H=LOC().h; flight=null; replay=null; airArrow.visible=forceArrow.visible=false; throwBtn(false); trailGeo.setDrawRange(0,0); $('#result').classList.remove('on'); model.position.set(0,H,0); aimQuat(); model.scale.setScalar(1); const a=D.aim*DEG; dirH.set(Math.cos(a),0,Math.sin(a));
+function resetFlightView(){ const H=LOC().h; flight=null; replay=null; airArrow.visible=forceArrow.visible=false; hudFlex(0,null); throwBtn(false); trailGeo.setDrawRange(0,0); $('#result').classList.remove('on'); model.position.set(0,H,0); aimQuat(); model.scale.setScalar(1); const a=D.aim*DEG; dirH.set(Math.cos(a),0,Math.sin(a));
   camPos.set(-1.15*dirH.x,H+.38,-1.15*dirH.z); camTgt.set(.5*dirH.x,H,.5*dirH.z); hudSet(0,H,0,0,0); windVis(); shadow.position.set(0,.02,0); }
 function windVis(){ const w=[0,0,0]; env.windAt([3,3,-3.5],0,w); const sp=Math.hypot(w[0],w[2]); const c=sock.userData.c; c.rotation.set(0,0,0); c.rotation.y=Math.atan2(-w[2],w[0]); c.rotation.z=-clamp(1.45-sp*.5,0,1.45); }
 function hudFlex(th,rp){ $('#hFlexBox').hidden=D.kind!=='plane'; $('#hFlex').textContent=Math.round(Math.abs(th||0)/DEG); $('#hRp').hidden=!rp; if(rp) $('#hRpS').textContent=rp; }
@@ -742,6 +758,22 @@ function simulate(dt){ const f=flight, st=f.st; if(!f.done){ f.acc+=dt*speedMul;
   camAt(st.p,f.done&&camMode==='back'?f.after*.25:0);
   camPos.lerp(tmp,Math.min(1,dt*7)); camTgt.lerp(model.position,Math.min(1,dt*12));
   hudSet(Math.hypot(st.p[0],st.p[2]),st.p[1],st.speed,st.alpha/DEG,st.t); hudFlex(st.flex,null); lbAlpha=st.alpha; }
+/* ================= ランキング（この端末）：場所 × 作ったもの ごとに上位10回。機体の設定ごと残して、呼び戻せる ================= */
+const RANK_KEY='khlab_rank', DIST_NAME=['外乱なし','外乱ふつう','外乱強い'];
+function rankAll(){ try{ return JSON.parse(localStorage.getItem(RANK_KEY)||'{}')||{}; }catch(e){ return {}; } }
+function rankAdd(R){ const all=rankAll(), k=D.kind+'@'+D.loc, L=all[k]||[], windy=!!(D.head||D.cross||D.gust);
+  const e={d:Math.round(R.dist*10)/10,t:Math.round(R.time*100)/100,n:R.name,p:D.preset||'',dl:D.dist,w:windy,at:Date.now(),c:encode()};
+  L.push(e); L.sort((a,b)=>b.d-a.d||a.at-b.at); const top=L.slice(0,10), pos=top.indexOf(e);
+  all[k]=top; try{ localStorage.setItem(RANK_KEY,JSON.stringify(all)); }catch(err){} return pos; }
+let rankNew=-1;
+function renderRank(){ const ol=$('#rankList'); if(!ol) return; const L=rankAll()[D.kind+'@'+D.loc]||[]; $('#rankFor').textContent=`${LOC().name}・${KIND_NAME[D.kind]}`;
+  ol.innerHTML=''; if(!L.length){ const li=document.createElement('li'); li.className='empty'; li.textContent='まだ記録がありません。投げると、ここに並びます。'; ol.appendChild(li); return; }
+  L.forEach((e,i)=>{ const li=document.createElement('li'); if(i===rankNew) li.className='new'; const dt=new Date(e.at);
+    li.innerHTML=`<span class="rd"></span><span class="rs"></span><button class="b rb" type="button">この機体で</button>`;
+    li.querySelector('.rd').textContent=fmt(e.d,1)+' m'; li.querySelector('.rs').textContent=`${e.n}・${DIST_NAME[e.dl]||''}${e.w?'・風あり':''}・${dt.getMonth()+1}/${dt.getDate()}`;
+    li.querySelector('.rb').addEventListener('click',()=>loadRank(e)); ol.appendChild(li); }); }
+function loadRank(e){ if(busy) return; if(!decode(e.c)){ toast('この記録は読みこめませんでした'); return; } D.preset=e.p||'';
+  setPaper(); refold(); syncInputs(); applyLoc(); changed(); rankNew=-1; resetFlightView(); renderRank(); $('#panel').scrollTop=0; toast(`${fmt(e.d,1)}m の機体に戻しました。投げてみてください`); }
 let lastDist=null;
 function finish(){ const f=flight, st=f.st, dist=Math.hypot(st.p[0],st.p[2]), L=LOC(); throwBtn(false); const diff=lastDist==null?'':`前回より ${dist>=lastDist?'+':'−'}${fmt(Math.abs(dist-lastDist),1)}m。`; lastDist=dist;
   const R={dist,time:st.t,hmax:st.hmax,vavg:f.vsum/Math.max(1,f.vn),path:f.path,kind:D.kind,loc:L,name:D.kind==='plane'?(K.presets(paper).find(p=>p.id===D.preset)||{name:'自分で折った機体'}).name:KIND_NAME[D.kind]}; f.R=R;
@@ -749,7 +781,7 @@ function finish(){ const f=flight, st=f.st, dist=Math.hypot(st.p[0],st.p[2]), L=
   $('#rLine').textContent=diff+`${L.name}から。滞空 ${fmt(st.t,2)}秒・最高 ${fmt(st.hmax,1)}m・平均 秒速${fmt(R.vavg,1)}m。`+(st.flexMax>.09?`翼のしなり 最大 ${fmt(st.flexMax*180/Math.PI,0)}°${st.flexMax>.6?'（折れ上がって揚力を失いました）':''}。`:'')+(f.dz?`今回のぶれ：角度 ${f.dz.dAng>=0?'+':''}${fmt(f.dz.dAng,1)}°・傾き ${f.dz.roll>=0?'+':''}${fmt(f.dz.roll/DEG,0)}°・向き ${f.dz.head>=0?'+':''}${fmt(f.dz.head/DEG,0)}°・速さ ${f.dz.dv>=0?'+':''}${fmt(f.dz.dv*100,0)}%。`:'')+(L.id==='yard'?`世界記録 ${REC_DIST}m の ${fmt(pct,pct<10?1:0)}%。`:'')+(f.wall?' 壁に当たりました。':L.id==='iss'?' 20秒で打ち切りました。':st.p[0]<-.5?' 後ろへ戻ってしまいました。':st.hmax>L.h+2.5&&dist<6?' 上がりすぎて失速しました。速さか反り上げを減らします。':'');
   replay=null; $('#rpPlay').textContent='▶ もう一度見る'; $('#rpT').value=1000; $('#rp').hidden=!(f.rec&&f.rec.length>1); $('#rpInfo').textContent='';
   $('#result').classList.add('on'); $('#panel').scrollTop=0; drawChart(R); $('#shareX').href=xUrl(R);
-  try{ const b=JSON.parse(localStorage.getItem('khlab_best')||'{}'), k=D.kind+'@'+D.loc; if(!(b[k]>=dist)){ b[k]=Math.round(dist*10)/10; localStorage.setItem('khlab_best',JSON.stringify(b)); } }catch(e){} renderLabels(); }
+  try{ const b=JSON.parse(localStorage.getItem('khlab_best')||'{}'), k=D.kind+'@'+D.loc; if(!(b[k]>=dist)){ b[k]=Math.round(dist*10)/10; localStorage.setItem('khlab_best',JSON.stringify(b)); } }catch(e){} rankNew=rankAdd(R); if(rankNew>=0) toast(rankNew===0?'この端末の1位！':`この端末で ${rankNew+1}位`); renderLabels(); }
 function drawChart(R,g,x,y,W,H){ const own=!g; if(own){ const c=$('#chart'); g=c.getContext('2d'); x=0; y=0; W=c.width; H=c.height; g.clearRect(0,0,W,H); }
   const xs=R.path.map(p=>p[0]), xmin=Math.min(0,...xs), xmax=Math.max(5,...xs), ymax=Math.max(3,R.hmax*1.1), pad=26, sx=(W-2*pad)/(xmax-xmin), sy=(H-2*pad)/ymax, s=Math.min(sx,sy*3), X=v=>x+pad+(v-xmin)*s, Y=v=>y+H-pad-v*Math.min(sy,s);
   g.strokeStyle='#c9d6cf'; g.lineWidth=1; g.font='500 16px "IBM Plex Mono",monospace'; g.fillStyle='#5b6b65'; g.textAlign='center';
