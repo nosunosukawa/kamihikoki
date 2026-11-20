@@ -157,7 +157,7 @@ details.more[open] summary{margin-bottom:6px}
   <div class="stage" id="stage">
     <canvas id="foldcv" aria-label="紙を折る台"></canvas>
     <div class="tools" id="tools"><button class="tb" id="undo" aria-label="1手もどす"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4L3 8l4 4"/><path d="M3 8h8.5a5 5 0 010 10H8"/></svg><span>もどす</span></button><button class="tb" id="reset" aria-label="紙を広げる"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round" aria-hidden="true"><rect x="4.5" y="2.5" width="11" height="15" rx="1"/><path d="M10 2.5v15" stroke-dasharray="2 2.4" stroke-width="1.6"/></svg><span>広げる</span></button><button class="tb" id="mode" aria-pressed="false" aria-label="谷折りと山折りを切り替える"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path id="modeIcon" d="M3 6l7 8 7-8"/></svg><span id="modeTxt">谷折り</span></button><span id="foldN"></span></div>
-    <p class="hint" id="foldHint" role="status">黄色い角をタップして、次に青い丸をタップします。角をなぞっても折れます。</p>
+    <p class="hint" id="foldHint" role="status">紙の上に線を引くと、そこで折れます。黄色い角をタップして運ぶこともできます。</p>
     <div class="grab" id="grab"></div>
     <div class="hud" id="hud">
       <div><small>距離</small><b id="hDist">0.0</b><i>m</i></div>
@@ -242,6 +242,9 @@ details.more[open] summary{margin-bottom:6px}
       <div class="sl"><label for="tV">投げる速さ</label><output id="tVo"></output><input id="tV" type="range" min="2" max="15" step="0.5" value="6"></div>
       <div class="sl"><label for="tA">投げる角度</label><output id="tAo"></output><input id="tA" type="range" min="-10" max="60" step="1" value="5"></div>
       <div class="sl" id="spinRow" hidden><label for="tS">回転</label><output id="tSo"></output><input id="tS" type="range" min="0" max="15" step="1" value="10"></div>
+      <h2>外乱<small>投げのぶれ・空気のゆらぎ・折りのゆがみ</small></h2>
+      <div class="seg" id="dist"><button data-d="0">なし</button><button data-d="1">ふつう</button><button data-d="2">強い</button></div>
+      <p class="cap" id="distCap" style="margin-top:4px"></p>
       <details class="more" id="airBox">
         <summary>空気と風を変える <small id="rhoCap" style="font-weight:500"></small></summary>
       <div class="sl"><label for="eT">気温</label><output id="eTo"></output><input id="eT" type="range" min="-10" max="40" step="1" value="20"></div>
@@ -256,6 +259,7 @@ details.more[open] summary{margin-bottom:6px}
     <p class="foot">計算のしくみ：折った紙の重なりから重心と慣性を出し、翼と胴体を細い帯に分けて、帯ごとの空気の力を足し合わせています（翼素法）。左下の流れの絵は、翼を真横から見て、まわりの空気の動きを解いたものです（格子ボルツマン法）。白い線が翼、オレンジと青は、翼の上と下で空気が渦を巻いている所（回る向きが逆）。傾きが大きくなると、上の帯が翼からはがれて乱れます（失速）。絵は見るためのもので、飛距離の計算には使っていません。<br>
 翼のしなり：翼を、付け根で固定した片持ちばりとして曲げます。1枚の曲げこわさは D＝E·t³/12（E はヤング率、t は厚さ）。重ねて折った所は、枚数ぶんだけ曲げにくくなります。E はコピー用紙 2.7GPa（規格表の曲げこわさから逆算）、新聞紙 1.3GPa、画用紙 2.0GPa の目安です。<br>
 空気抵抗：両面の摩擦（層流・ブラジウスの式）に、前縁の厚み（重なりの枚数×紙の厚さ）にかかる動圧を足しています。紙の厚さは、折れる回数の限界（重なりが約3mmまで）にも使います。谷折りと山折りは、紙の重なる順番（表と裏）が変わるだけで、この計算では飛び方は同じです。<br>
+外乱：投げるたびに、角度・傾き・向き・速さのぶれ、空気のゆらぎ、左右の翼の反りの差を、乱数で1回ぶん決めます。「なし」にすると毎回同じ結果になります。<br>
 入っていないもの：付け根の折り目のゆるみ、紙のねじれと折りぐせ、重なった紙のすき間に入る空気。<br>
 世界記録：飛距離 88.31m（2022年）、滞空 29.2秒（2010年）。ギネス世界記録より。<br>月の重力は 1.62m/s²、火星は重力 3.71m/s²・大気の密度 約0.020kg/m³ として計算（NASA の資料の値）。</p>
   </aside>
@@ -263,7 +267,7 @@ details.more[open] summary{margin-bottom:6px}
 <div class="toast" id="toast" role="status"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" integrity="sha512-dLxUelApnYxpLt6K2iomGngnHO83iUvZytA3YjDUCjT0HDOHKXnVYdf3hU4JjM8uEhxf9nD1/ey98U3t2vZ0qQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-<script src="core.js?v=4"></script>
+<script src="core.js?v=5"></script>
 <script>
 (()=>{
 'use strict';
@@ -287,7 +291,7 @@ if(!window.THREE||!K){ $('#foldHint').textContent='部品を読み込めませ�
 const V3=THREE.Vector3;
 
 /* ================= 状態 ================= */
-const CRUSH=100, D={loc:'yard',mat:'copy',size:'a4',kind:'plane',crush:0,folds:[],preset:'',h:16,dih:8,elev:2.5,clips:0,ringA:20,ringN:5,tight:0,
+const CRUSH=100, D={loc:'yard',mat:'copy',size:'a4',kind:'plane',crush:0,folds:[],preset:'',h:16,dih:8,elev:2.5,clips:0,ringA:20,ringN:5,tight:0,dist:1,
   v:6,ang:5,spin:10,temp:20,alt:0,head:0,cross:0,gust:0};
 let paper, faces, history=[], env, pl, an, tab='make';
 function refold(){ sel=null; faces=K.newPaper(paper); history=[]; const ok=[]; for(const f of D.folds){ const r=K.fold(faces,f[0],f[1],f[2]); if(r.err) break; history.push(faces); faces=r.faces; ok.push(f); } D.folds=ok; }
@@ -305,8 +309,8 @@ function decode(h){ try{ const o=JSON.parse(decodeURIComponent(escape(atob(h.rep
     const num=(k,a,b)=>{ const v=Number(o[k]); if(Number.isFinite(v)) D[k]=clamp(v,a,b); };
     if(K.MATERIALS.some(m=>m.id===o.mat)) D.mat=o.mat; if(K.SIZES.some(s=>s.id===o.size)) D.size=o.size; if(['plane','ring','ball'].includes(o.kind)) D.kind=o.kind; if(LOCS.some(l=>l.id===o.loc)) D.loc=o.loc;
     num('crush',0,CRUSH); num('h',6,40); num('dih',-5,30); num('elev',-5,25); num('clips',0,3); num('ringA',10,40); num('ringN',1,6); num('tight',0,1); num('v',2,30); num('ang',-10,60); num('spin',0,15);
-    num('temp',-10,40); num('alt',0,3000); num('head',-5,5); num('cross',-3,3); num('gust',0,2);
-    if(Array.isArray(o.folds)) D.folds=o.folds.slice(0,14).filter(f=>Array.isArray(f)&&(f.length===4||f.length===5)&&f.every(x=>Number.isFinite(Number(x)))).map(f=>[[clamp(+f[0],0,400),clamp(+f[1],-50,500)],[clamp(+f[2],0,400),clamp(+f[3],-50,500)],+f[4]===1?1:0]);
+    num('dist',0,2); D.dist=Math.round(D.dist); num('temp',-10,40); num('alt',0,3000); num('head',-5,5); num('cross',-3,3); num('gust',0,2);
+    if(Array.isArray(o.folds)) D.folds=o.folds.slice(0,14).filter(f=>Array.isArray(f)&&(f.length===4||f.length===5)&&f.every(x=>Number.isFinite(Number(x)))).map(f=>[[clamp(+f[0],-400,400),clamp(+f[1],-100,600)],[clamp(+f[2],-400,400),clamp(+f[3],-100,600)],+f[4]===1?1:0]);
     return true; }catch(e){ return false; } }
 
 /* ================= 3D ================= */
@@ -403,7 +407,7 @@ const orbit={yaw:-.9,pitch:.42,auto:true};
 /* ================= 折る台（2D） ================= */
 const fc=$('#foldcv'), fx=fc.getContext('2d'); let FS={s:1,x0:0,y0:0}, drag=null, ghost=null, sel=null, selT=[], snapTol=12;
 let hv=null, hotFor=null, hotList=[], under=false;   // under＝山折り
-const HINT0='黄色い角をタップして、次に青い丸をタップします。角をなぞっても折れます。';
+const HINT0='紙の上に線を引くと、そこで折れます。黄色い角をタップして運ぶこともできます。';
 function foldScale(){ const k=fc.width/Math.max(1,fc.clientWidth), wd=app.classList.contains('wide'), mx=(wd?150:68)*k, mt=14*k, mb=(wd?88:65)*k, aw=fc.width-2*mx, ah=fc.height-mt-mb;   // 左右は道具、下は案内のぶんを空ける
   const s=Math.max(.05,Math.min(aw/paper.W,ah/paper.L)); FS={s,x0:fc.width/2,y0:mt+(ah-paper.L*s)/2}; }
 function crease(L,k){ const t=[-L.ny,L.nx]; for(const side of [1,-1]){ const p=toPx(L.px-t[0]*400,L.py-t[1]*400,side), q=toPx(L.px+t[0]*400,L.py+t[1]*400,side); fx.setLineDash([8*k,6*k]); fx.strokeStyle='#F2B632'; fx.lineWidth=2.5*k; fx.beginPath(); fx.moveTo(p[0],p[1]); fx.lineTo(q[0],q[1]); fx.stroke(); fx.setLineDash([]); } }
@@ -426,7 +430,10 @@ function drawFold(){
     for(let i=0;i<D.crush*7;i++){ const u=(rnd()*2-1)*bd.umax, v=bd.vmin+rnd()*(bd.vmax-bd.vmin), a=rnd()*TAU, l=6+rnd()*26, p=toPx(u,v,1), q=toPx(u+Math.cos(a)*l,v+Math.sin(a)*l,1);
       fx.strokeStyle=i%2?'rgba(22,36,31,.28)':'rgba(255,255,255,.7)'; fx.beginPath(); fx.moveTo(p[0],p[1]); fx.lineTo(q[0],q[1]); fx.stroke(); } fx.restore(); }
   fx.setLineDash([6*s,5*s]); fx.strokeStyle='rgba(22,36,31,.45)'; fx.lineWidth=Math.max(1,.6*s); fx.beginPath(); fx.moveTo(FS.x0,FS.y0-8*s); fx.lineTo(FS.x0,FS.y0+paper.L*s+8*s); fx.stroke(); fx.setLineDash([]);
-  if(drag&&drag.moved){ const a=toPx(drag.A[0],drag.A[1],drag.side), b=toPx(drag.B[0],drag.B[1],drag.side); const bad=!ghost, k=fc.width/Math.max(1,fc.clientWidth);
+  if(drag&&drag.moved&&drag.line){ const k=fc.width/Math.max(1,fc.clientWidth), px=q=>toPx(Math.abs(q[0]),q[1],q[0]<0?-1:1), a=px(drag.P1), b=px(drag.P2);
+    if(ghost) crease(ghost.line,k); else { fx.setLineDash([8*k,6*k]); fx.strokeStyle='#E5482D'; fx.lineWidth=2.5*k; const ex=b[0]-a[0], ey=b[1]-a[1], el=Math.hypot(ex,ey)||1, far=Math.max(fc.width,fc.height)*1.5; fx.beginPath(); fx.moveTo(a[0]-ex/el*far,a[1]-ey/el*far); fx.lineTo(b[0]+ex/el*far,b[1]+ey/el*far); fx.stroke(); fx.setLineDash([]); }
+    for(const q of [a,b]){ fx.beginPath(); fx.arc(q[0],q[1],5*k,0,TAU); fx.fillStyle=ghost?'#F2B632':'#E5482D'; fx.fill(); fx.strokeStyle='#16241f'; fx.lineWidth=1.5*k; fx.stroke(); } }
+  else if(drag&&drag.moved){ const a=toPx(drag.A[0],drag.A[1],drag.side), b=toPx(drag.B[0],drag.B[1],drag.side); const bad=!ghost, k=fc.width/Math.max(1,fc.clientWidth);
     for(const t of drag.T||[]){ const q=toPx(t[0],t[1],drag.side); mark(q[0],q[1],k,1); }
     if(ghost){ const L=ghost.line, t=[-L.ny,L.nx]; for(const side of [1,-1]){ const p=toPx(L.px-t[0]*400,L.py-t[1]*400,side), q=toPx(L.px+t[0]*400,L.py+t[1]*400,side); fx.setLineDash([8*s,6*s]); fx.strokeStyle='#F2B632'; fx.lineWidth=Math.max(2,1.1*s); fx.beginPath(); fx.moveTo(p[0],p[1]); fx.lineTo(q[0],q[1]); fx.stroke(); fx.setLineDash([]); } }
     fx.strokeStyle=bad?'#E5482D':'#fff'; fx.lineWidth=Math.max(2,1*s); fx.beginPath(); fx.moveTo(a[0],a[1]); fx.lineTo(b[0],b[1]); fx.stroke();
@@ -469,6 +476,18 @@ function settle(A,B,cand){ const tol=snapTol*(fc.width/fc.clientWidth)/FS.s; let
   if(B[0]<Math.max(tol*2,paper.pw*.25)) for(let k=0;k<=160;k++) for(const sg of (k?[-1,1]:[1])){ const t=[0,B[1]+sg*k*.5]; if(!K.fold(faces,A,t).err){
       for(const c of cand) if(Math.hypot(c[0]-t[0],c[1]-t[1])<2) return c; return t; } }
   return B; }
+function snapLine(pt,P1){ const tol=snapTol*(fc.width/fc.clientWidth)/FS.s; let o=[pt[0],pt[1]], best=null, bd=tol*.8;
+  for(const q of verts()) for(const sg of (q[0]<.5?[1]:[1,-1])){ const d=Math.hypot(sg*q[0]-o[0],q[1]-o[1]); if(d<bd){ bd=d; best=[sg*q[0],q[1]]; } }
+  if(best) return best;
+  if(Math.abs(o[0])<tol*.7) o[0]=0;
+  if(P1){ const dx=o[0]-P1[0], dy=o[1]-P1[1], L=Math.hypot(dx,dy); if(L>1){ const a=Math.atan2(dy,dx), st=Math.PI/4, a2=Math.round(a/st)*st; if(Math.abs(a-a2)<.1) o=[P1[0]+Math.cos(a2)*L,P1[1]+Math.sin(a2)*L]; } }
+  return [Math.round(o[0]*2)/2,Math.round(o[1]*2)/2]; }
+/* 引いた線で折る。線のどちら側を折るかは、折れる側（両方折れるなら、小さい側）にする */
+function lineFold(P1,P2){ let a=P1, b=P2; if(a[0]<=0&&b[0]<=0&&(a[0]<0||b[0]<0)){ a=[-a[0],a[1]]; b=[-b[0],b[1]]; }      // 左半分に引いた線は、右半分に写す（左右対称）
+  const dx=b[0]-a[0], dy=b[1]-a[1], L=Math.hypot(dx,dy); if(L<4) return null; const nx=-dy/L, ny=dx/L, mx=(a[0]+b[0])/2, my=(a[1]+b[1])/2, d=20; let best=null, err='none';
+  for(const sg of [1,-1]){ const A=[mx+nx*d*sg,my+ny*d*sg], B=[mx-nx*d*sg,my-ny*d*sg], r=K.fold(faces,A,B,under); if(r.err){ if(r.err==='tear') err='tear'; continue; }
+    let ar=0; for(const f of faces){ const c=K.clipHalf(f.p,mx,my,nx*sg,ny*sg,1); if(c.length>=3) ar+=Math.abs(K.area(c)); } if(!best||ar<best.ar) best={A,B,r,ar}; }
+  return best||{err}; }
 /* 折る。きれいに折れたら形が変わる。折れなかった手や、厚くなりすぎたあとの手は、しわとして数える。合わせて100回で玉になる */
 const tooThick=f=>f.length>160||D.folds.length>=14||K.stack(f)*paper.th>K.FOLD_MM;      // 折ったあとの束が厚すぎるか
 function tryFold(A,B){ const r=K.fold(faces,A,B,under), over=r.err?faces.length>160||D.folds.length>=14:tooThick(r.faces), moved=Math.hypot(A[0]-B[0],A[1]-B[1])>=4;
@@ -477,21 +496,24 @@ function tryFold(A,B){ const r=K.fold(faces,A,B,under), over=r.err?faces.length>
       const why=over?`重なりが厚くて（約${(K.stack(r.err?faces:r.faces)*paper.th).toFixed(1)}mm）、もうきれいには折れません。`:r.err==='center'?'中心線をこえては折れません。':r.err==='tear'?'その折り方だと、紙が中心線で裂けてしまいます。':'そこでは折れません。';
       hint(n<25?why+`しわが付きました（折り ${n}回）`:n<60?`しわだらけになってきました（折り ${n}回）`:`もう紙というより、かたまりです（折り ${n}回）`,true); } } }
 function onPaper(A){ return faces.some(f=>K.inside(f.p,A[0],A[1])||f.p.some(q=>Math.hypot(q[0]-A[0],q[1]-A[1])<1)); }
-fc.addEventListener('pointerdown',e=>{ if(busy) return; e.preventDefault(); snapTol=e.pointerType==='mouse'?12:26; const p=evToPaper(e), pt=[p.u,p.v], v=pick(pt);
-  let A=v?[v[0],v[1]]:snap(pt), on=!!v||onPaper(A), fromSel=false; ghost=null; hv=null;
-  if(sel&&!(v&&isHot(v)&&Math.hypot(v[0]-sel[0],v[1]-sel[1])>1)){ A=sel; on=true; fromSel=true;          // 角を選んだあとは、どこから指を動かしても、その角を持っていく
+fc.addEventListener('pointerdown',e=>{ if(busy) return; e.preventDefault(); snapTol=e.pointerType==='mouse'?12:26; const p=evToPaper(e), pt=[p.u,p.v], v=pick(pt); ghost=null; hv=null;
+  let d;
+  if(sel&&!(v&&isHot(v)&&Math.hypot(v[0]-sel[0],v[1]-sel[1])>1)){ d={A:sel,B:sel,fromSel:true};                    // 角を選んだあとは、どこから指を動かしても、その角を持っていく
     const t=near(selT,pt,snapTol*(fc.width/fc.clientWidth)/FS.s*1.6); if(t){ const r=K.fold(faces,sel,t,under); if(!r.err) ghost=r; } }   // 青い丸を押している間は、折り上がりを見せる
-  if(!on) return;
-  try{ fc.setPointerCapture(e.pointerId); }catch(_){} drag={A,B:A,side:p.side,id:e.pointerId,cx:e.clientX,cy:e.clientY,moved:false,fromSel}; drawFold(); });
+  else if(v) d={A:[v[0],v[1]],B:[v[0],v[1]]};                                                                     // 角から始める＝角を運ぶ
+  else { const P=snapLine([p.side*p.u,p.v]); d={line:true,P1:P,P2:P}; }                                            // それ以外から始める＝線を引く
+  try{ fc.setPointerCapture(e.pointerId); }catch(_){} drag=Object.assign(d,{side:p.side,id:e.pointerId,cx:e.clientX,cy:e.clientY,moved:false}); drawFold(); });
 fc.addEventListener('pointermove',e=>{ if(!drag){ if(e.pointerType==='mouse'&&!busy) hover(e); return; } if(e.pointerId!==drag.id) return;
-  if(!drag.moved){ if(Math.hypot(e.clientX-drag.cx,e.clientY-drag.cy)<10) return; drag.moved=true; sel=null; drag.T=targets(drag.A); }
-  const p=evToPaper(e); if(drag.fromSel) drag.side=p.side;
+  if(!drag.moved){ if(Math.hypot(e.clientX-drag.cx,e.clientY-drag.cy)<10) return; drag.moved=true; sel=null; if(!drag.line) drag.T=targets(drag.A); }
+  const p=evToPaper(e);
+  if(drag.line){ drag.P2=snapLine([p.side*p.u,p.v],drag.P1); drag.res=lineFold(drag.P1,drag.P2); ghost=drag.res&&drag.res.r||null; drawFold(); return; }
+  if(drag.fromSel) drag.side=p.side;
   drag.B=settle(drag.A,snap([p.side===drag.side?p.u:0,p.v],true,drag.A),drag.T); const r=K.fold(faces,drag.A,drag.B,under); ghost=r.err?null:r; drawFold(); });
 /* マウス：角に合わせると白い輪、青い丸に合わせると折り上がりを先に見せる */
 function hover(e){ snapTol=12; const p=evToPaper(e), pt=[p.u,p.v]; let g=null, v=null;
   if(sel){ const t=near(selT,pt,12*(fc.width/fc.clientWidth)/FS.s*1.6); if(t){ const r=K.fold(faces,sel,t,under); if(!r.err) g=r; } }
   if(!g) v=pick(pt);
-  fc.style.cursor=g||v?'pointer':onPaper(pt)?'grab':'default';
+  fc.style.cursor=g||v?'pointer':'crosshair';
   if(g||ghost||v!==hv){ ghost=g; hv=v; drawFold(); } }
 fc.addEventListener('pointerleave',()=>{ if(!drag&&(ghost||hv)){ ghost=null; hv=null; drawFold(); } });
 function tap(e){ const p=evToPaper(e), pt=[p.u,p.v], tol=snapTol*(fc.width/fc.clientWidth)/FS.s, v=pick(pt);
@@ -502,9 +524,11 @@ function tap(e){ const p=evToPaper(e), pt=[p.u,p.v], tol=snapTol*(fc.width/fc.cl
       if(selT.length){ hint('青い丸をタップします。好きな所へ折るときは、角をなぞります。',true); return; }
       B=settle(sel,snap(pt,true,sel),selT); if(K.fold(faces,sel,B).err){ sel=null; hint('そこへは折れません。黄色い角をタップします。',true); return; } }
     const A=sel; sel=null; tryFold(A,B); return; }
-  if(v) select(v); else hint(HINT0); }
+  if(v) select(v); else hint('線を引くときは、指を置いたまま動かします。角を運ぶときは、黄色い角をタップします。'); }
 function endDrag(e){ if(!drag||e.pointerId!==drag.id) return; const d=drag; drag=null; ghost=null; hv=null;
-  if(e.type==='pointerup'){ if(d.moved) tryFold(d.A,d.B); else tap(e); }                                 // 取り消し（pointercancel）では折らない
+  if(e.type==='pointerup'){ if(d.line&&d.moved){ const r=d.res; if(r&&!r.err) tryFold(r.A,r.B);
+      else hint(r&&r.err==='tear'?'その線は、のばすと中心線をななめに横切るので折れません。中心線に届かない線か、まっすぐ横の線を引きます。':'線が紙にかかっていません。紙を横切るように引きます。',true); }
+    else if(d.moved) tryFold(d.A,d.B); else tap(e); }                                 // 取り消し（pointercancel）では折らない
   drawFold(); }
 fc.addEventListener('pointerup',endDrag); fc.addEventListener('pointercancel',endDrag);
 fc.addEventListener('touchstart',e=>e.preventDefault(),{passive:false}); fc.addEventListener('contextmenu',e=>e.preventDefault());
@@ -528,6 +552,8 @@ function renderLabels(){
   o('ringAo',D.ringA+' mm'); o('ringNo',D.ringN+' 回'); o('tVo',fmt(D.v,1)+' m/s（時速'+Math.round(D.v*3.6)+'km）'); o('tAo',D.ang+'°'); o('tSo','毎秒 '+D.spin+' 回転');
   o('eTo',D.temp+'℃'); o('eAlto',D.alt+' m'); o('eHeado',D.head>0?'向かい風 '+fmt(D.head,1)+' m/s':D.head<0?'追い風 '+fmt(-D.head,1)+' m/s':'無風');
   o('eCrosso',D.cross>0?'左から '+fmt(D.cross,1)+' m/s':D.cross<0?'右から '+fmt(-D.cross,1)+' m/s':'なし'); o('eGusto',D.gust?'±'+fmt(D.gust,1)+' m/s':'なし');
+  $$('#dist button').forEach(b=>b.setAttribute('aria-pressed',String(+b.dataset.d===D.dist))); { const d=K.DIST[D.dist];
+    $('#distCap').textContent=d?`投げるたびに結果が変わります。角度 ±${d.ang}°・左右の傾き ±${d.roll}°・向き ±${d.yaw}°・速さ ±${Math.round(d.dv*100)}%、空気のゆらぎ ${d.turb}m/s、左右の翼の反りの差 ±${d.warp}°（どれも、ばらつきの目安）`:'ぶれもゆらぎもなし。同じ投げ方なら、毎回同じ結果になります。'; }
   $('#spinRow').hidden=D.kind!=='ring'; $('#tV').max=D.kind==='ball'?30:D.kind==='ring'?20:15;
   $('#mkPlane').hidden=D.kind!=='plane'; $('#mkRing').hidden=D.kind!=='ring'; $('#mkBall').hidden=D.kind!=='ball'; $('#tnPlane').hidden=D.kind!=='plane';
   app.dataset.kind=D.kind; $$('#kind button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.kind===D.kind))); $$('#tight button').forEach(b=>b.setAttribute('aria-pressed',String(+b.dataset.t===D.tight)));
@@ -570,7 +596,12 @@ function drawTop(){ const c=$('#topview'), g=c.getContext('2d'), W=c.width, H=c.
 function syncInputs(){ const set=(id,v)=>{ $('#'+id).value=v; }; set('loc',D.loc); set('mat',D.mat); set('size',D.size); set('pH',D.h); set('pDih',D.dih); set('pElev',D.elev); set('pClip',D.clips); set('ringA',D.ringA); set('ringN',D.ringN);
   set('tV',D.v); set('tA',D.ang); set('tS',D.spin); set('eT',D.temp); set('eAlt',D.alt); set('eHead',D.head); set('eCross',D.cross); set('eGust',D.gust); }
 function setPaper(){ paper=K.makePaper(D.size,D.mat); $('#pH').max=Math.round(paper.pw*.4); D.h=clamp(D.h,6,+$('#pH').max);
-  $('#presets').innerHTML=''; for(const p of K.presets(paper)){ const b=document.createElement('button'); b.className='b'; b.textContent=p.name; b.title=p.note; b.addEventListener('click',()=>runPreset(p)); $('#presets').appendChild(b); } }
+  $('#presets').innerHTML=''; for(const p of K.presets(paper)){ const b=document.createElement('button'); b.className='b'; b.textContent=p.name; b.title=p.note; b.addEventListener('click',()=>runPreset(p)); $('#presets').appendChild(b); } 
+  { const b=document.createElement('button'); b.className='b'; b.textContent='最強型'; b.title='探索で見つけた、外乱があっても遠くへ飛ぶ設定'; b.addEventListener('click',bestPlane); $('#presets').appendChild(b); } }
+/* 最強型：総当たりに近い探索（紙36種 × 折り方260通り）で、外乱ありの平均がいちばん安定して長かった設定。紙・折り・仕上げ・投げ方をまとめて入れる */
+async function bestPlane(){ if(busy) return; D.size='a3'; D.mat='draw'; D.kind='plane'; setPaper(); syncInputs(); const p=K.presets(paper)[0];
+  await runPreset(Object.assign({},p,{prm:{h:26,dih:-2,elev:1.5,clips:2}})); D.v=15; D.ang=4; syncInputs(); changed();
+  hint('最強型：A3の画用紙のやり型に、クリップ2個。秒速15m・上向き4°で投げます。'); }
 function setTab(t){ if(t==='fly'&&flight&&!flight.done) return; tab=t; app.dataset.tab=t; $$('.tabs button').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.tab===t)));
   const sc=t==='fly'?field:hangar; if(model.parent!==sc){ sc.add(model); } if(t!=='fly'){ model.position.set(0,0,0); model.quaternion.set(0,0,0,1); model.scale.setScalar(1); orbit.auto=true; }
   else resetFlightView(); $('#panel').scrollTop=0; requestAnimationFrame(fit); }
@@ -582,8 +613,10 @@ function resetFlightView(){ const H=LOC().h; flight=null; trailGeo.setDrawRange(
 function windVis(){ const w=[0,0,0]; env.windAt([3,3,-3.5],0,w); const sp=Math.hypot(w[0],w[2]); const c=sock.userData.c; c.rotation.set(0,0,0); c.rotation.y=Math.atan2(-w[2],w[0]); c.rotation.z=-clamp(1.45-sp*.5,0,1.45); }
 function hudSet(d,alt,v,aoa,t){ $('#hDist').textContent=fmt(d,1); $('#hAlt').textContent=fmt(Math.max(0,alt),1); $('#hSpd').textContent=fmt(v,1); $('#hAoa').textContent=Math.round(aoa); $('#hTime').textContent=fmt(t,1); }
 function throwIt(){ if(flight&&!flight.done) return; buildAll(); resetFlightView();
-  const L=LOC(), st=K.launch(D.v,D.ang,L.h,{roll:.02,spin:D.kind==='ring'?D.spin:0}); flight={st,n:0,path:[[0,L.h]],done:false,after:0,acc:0,vsum:0,vn:0,dtr:L.h>20?.1:.02,tmax:L.tmax||300,iss:L.id==='iss'}; $('#throw').disabled=true; $('#panel').scrollTop=0; }
-function simulate(dt){ const f=flight, st=f.st; if(!f.done){ f.acc+=dt*speedMul; const h=.0005; let n=0; while(f.acc>=h&&n<1300&&!st.landed&&st.t<f.tmax){ K.step(st,pl,h,env); f.acc-=h; n++;
+  const L=LOC(), sp=L.g!=null, dz=K.disturb(D.dist,Math.floor(Math.random()*1e9));
+  const fenv=dz?Object.assign(K.makeEnv({tempC:D.temp,alt:D.alt,head:sp?0:D.head,cross:sp?0:D.cross,gust:sp?0:D.gust,turb:sp?0:dz.turb,seed:dz.tseed,warp:dz.warp,g:L.g,rho:L.rho,mu:L.mu}),{noGround:!!L.noGround}):env;
+  const st=K.launch(D.v,D.ang,L.h,{roll:.02,spin:D.kind==='ring'?D.spin:0,dz}); flight={st,env:fenv,dz,n:0,path:[[0,L.h]],done:false,after:0,acc:0,vsum:0,vn:0,dtr:L.h>20?.1:.02,tmax:L.tmax||300,iss:L.id==='iss'}; $('#throw').disabled=true; $('#panel').scrollTop=0; }
+function simulate(dt){ const f=flight, st=f.st; if(!f.done){ f.acc+=dt*speedMul; const h=.0005; let n=0; while(f.acc>=h&&n<1300&&!st.landed&&st.t<f.tmax){ K.step(st,pl,h,f.env||env); f.acc-=h; n++;
       if(f.iss&&(st.p[0]>10.9||st.p[0]<-.05||Math.abs(st.p[2])>1.95||st.p[1]<.05||st.p[1]>3.95)){ st.landed=true; f.wall=true; } } if(n>=1300) f.acc=0;
     f.vsum+=st.speed; f.vn++;
     if(f.n<3000&&(st.t>f.n*f.dtr)){ trailPos.set([st.p[0],st.p[1],st.p[2]],f.n*3); f.n++; trailGeo.setDrawRange(0,f.n); trailGeo.attributes.position.needsUpdate=true; f.path.push([Math.hypot(st.p[0],st.p[2])*(st.p[0]<0?-1:1),st.p[1]]); }
@@ -598,7 +631,7 @@ function simulate(dt){ const f=flight, st=f.st; if(!f.done){ f.acc+=dt*speedMul;
 function finish(){ const f=flight, st=f.st, dist=Math.hypot(st.p[0],st.p[2]), L=LOC(); $('#throw').disabled=false;
   const R={dist,time:st.t,hmax:st.hmax,vavg:f.vsum/Math.max(1,f.vn),path:f.path,kind:D.kind,loc:L,name:D.kind==='plane'?(K.presets(paper).find(p=>p.id===D.preset)||{name:'自分で折った機体'}).name:KIND_NAME[D.kind]}; f.R=R;
   $('#rDist').textContent=fmt(dist,1); const pct=dist/REC_DIST*100;
-  $('#rLine').textContent=`${L.name}から。滞空 ${fmt(st.t,2)}秒・最高 ${fmt(st.hmax,1)}m・平均 秒速${fmt(R.vavg,1)}m。`+(st.flexMax>.09?`翼のしなり 最大 ${fmt(st.flexMax*180/Math.PI,0)}°${st.flexMax>.6?'（折れ上がって揚力を失いました）':''}。`:'')+(L.id==='yard'?`世界記録 ${REC_DIST}m の ${fmt(pct,pct<10?1:0)}%。`:'')+(f.wall?' 壁に当たりました。':L.id==='iss'?' 20秒で打ち切りました。':st.p[0]<-.5?' 後ろへ戻ってしまいました。':st.hmax>L.h+2.5&&dist<6?' 上がりすぎて失速しました。速さか反り上げを減らします。':'');
+  $('#rLine').textContent=`${L.name}から。滞空 ${fmt(st.t,2)}秒・最高 ${fmt(st.hmax,1)}m・平均 秒速${fmt(R.vavg,1)}m。`+(st.flexMax>.09?`翼のしなり 最大 ${fmt(st.flexMax*180/Math.PI,0)}°${st.flexMax>.6?'（折れ上がって揚力を失いました）':''}。`:'')+(f.dz?`今回のぶれ：角度 ${f.dz.dAng>=0?'+':''}${fmt(f.dz.dAng,1)}°・傾き ${f.dz.roll>=0?'+':''}${fmt(f.dz.roll/DEG,0)}°・向き ${f.dz.head>=0?'+':''}${fmt(f.dz.head/DEG,0)}°・速さ ${f.dz.dv>=0?'+':''}${fmt(f.dz.dv*100,0)}%。`:'')+(L.id==='yard'?`世界記録 ${REC_DIST}m の ${fmt(pct,pct<10?1:0)}%。`:'')+(f.wall?' 壁に当たりました。':L.id==='iss'?' 20秒で打ち切りました。':st.p[0]<-.5?' 後ろへ戻ってしまいました。':st.hmax>L.h+2.5&&dist<6?' 上がりすぎて失速しました。速さか反り上げを減らします。':'');
   $('#result').classList.add('on'); $('#panel').scrollTop=0; drawChart(R); $('#shareX').href=xUrl(R);
   try{ const b=JSON.parse(localStorage.getItem('khlab_best')||'{}'), k=D.kind+'@'+D.loc; if(!(b[k]>=dist)){ b[k]=Math.round(dist*10)/10; localStorage.setItem('khlab_best',JSON.stringify(b)); } }catch(e){} renderLabels(); }
 function drawChart(R,g,x,y,W,H){ const own=!g; if(own){ const c=$('#chart'); g=c.getContext('2d'); x=0; y=0; W=c.width; H=c.height; g.clearRect(0,0,W,H); }
@@ -612,7 +645,7 @@ function drawChart(R,g,x,y,W,H){ const own=!g; if(own){ const c=$('#chart'); g=c
 
 /* ================= 共有 ================= */
 const siteUrl=()=>location.protocol.startsWith('http')?location.origin+location.pathname:'';
-function condText(){ const w=[]; if(D.head) w.push(D.head>0?`向かい風${fmt(D.head,1)}m`:`追い風${fmt(-D.head,1)}m`); if(D.cross) w.push(`横風${fmt(Math.abs(D.cross),1)}m`); if(D.gust) w.push('突風あり'); const L=LOC(); return `${L.name}／${paper.mat.name}・${paper.size.name}`+(L.g==null?`／${D.temp}℃／${w.length?w.join('・'):'無風'}`:''); }
+function condText(){ const w=[]; if(D.head) w.push(D.head>0?`向かい風${fmt(D.head,1)}m`:`追い風${fmt(-D.head,1)}m`); if(D.cross) w.push(`横風${fmt(Math.abs(D.cross),1)}m`); if(D.gust) w.push('突風あり'); const L=LOC(); return `${L.name}／${paper.mat.name}・${paper.size.name}／外乱${['なし','ふつう','強い'][D.dist]}`+(L.g==null?`／${D.temp}℃／${w.length?w.join('・'):'無風'}`:''); }
 function shareText(R){ return `✈️紙飛行機ラボ\n${R.name}が ${fmt(R.dist,1)}m 飛んだ（滞空 ${fmt(R.time,1)}秒）\n${condText()}\n`+(D.loc==='yard'?`世界記録 ${REC_DIST}m の ${fmt(R.dist/REC_DIST*100,R.dist<9?1:0)}%\n`:'')+`${TAG}`; }
 const xUrl=R=>'https://x.com/intent/post?text='+encodeURIComponent(shareText(R))+(siteUrl()?'&url='+encodeURIComponent(siteUrl()+'#d='+encode()):'');
 function toast(t){ const el=$('#toast'); el.textContent=t; el.classList.add('on'); clearTimeout(toast.t); toast.t=setTimeout(()=>el.classList.remove('on'),2400); }
@@ -675,6 +708,7 @@ for(const [id,key] of [['pH','h'],['pDih','dih'],['pElev','elev'],['pClip','clip
   $('#'+id).addEventListener('input',e=>{ D[key]=+e.target.value; if(['v','ang','spin'].includes(key)){ renderLabels(); renderDiag(); if(tab==='fly'&&(!flight||flight.done)) model.quaternion.setFromAxisAngle(new V3(0,0,1),D.ang*DEG); } else { changed(); if(tab==='fly') windVis(); } });
 $('#undo').addEventListener('click',()=>{ if(busy) return; sel=null; if(D.crush>0){ D.crush--; changed(); hint('1手もどしました。'); return; } if(!history.length) return; faces=history.pop(); D.folds.pop(); D.preset=''; changed(); hint('1手もどしました。'); });
 $('#reset').addEventListener('click',()=>{ if(busy) return; freshPaper(); });
+$$('#dist button').forEach(b=>b.addEventListener('click',()=>{ D.dist=+b.dataset.d; renderLabels(); }));
 $('#mode').addEventListener('click',()=>{ under=!under; $('#mode').setAttribute('aria-pressed',String(under)); $('#modeTxt').textContent=under?'山折り':'谷折り'; $('#modeIcon').setAttribute('d',under?'M3 14l7-8 7 8':'M3 6l7 8 7-8');
   hint(under?'山折り：これから折る所は、紙の裏側へ回ります。':'谷折り：これから折る所は、手前に重なります。'); drawFold(); });
 window.addEventListener('keydown',e=>{ if(tab!=='make'||D.kind!=='plane') return; const t=e.target&&e.target.tagName; if(t==='INPUT'||t==='SELECT'||t==='TEXTAREA') return;

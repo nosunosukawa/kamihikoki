@@ -22,10 +22,17 @@ function makePaper(sizeId,matId){ const s=SIZES.find(x=>x.id===sizeId)||SIZES[0]
 function air(tempC,altM){ const T=tempC+273.15, p=101325*Math.pow(1-2.25577e-5*(altM||0),5.25588);
   return {T,p,rho:p/(287.05*T),mu:1.716e-5*Math.pow(T/273.15,1.5)*(273.15+110.4)/(T+110.4)}; }
 /* 風：向かい風 head（m/s、正で正面から）、横風 cross（正で左から）、突風の強さ gust（m/s）。地面に近いほど弱い */
-function makeEnv(o){ o=o||{}; const a=air(o.tempC==null?20:o.tempC,o.alt||0), head=o.head||0, cross=o.cross||0, gust=o.gust||0;
+/* 乱数（同じ種からは同じ並びが出る） */
+function rng(seed){ let a=(seed>>>0)||1; return ()=>{ a=(a+0x6D2B79F5)>>>0; let t=Math.imul(a^(a>>>15),1|a); t=(t+Math.imul(t^(t>>>7),61|t))^t; return ((t^(t>>>14))>>>0)/4294967296; }; }
+/* 外乱：投げるたびのぶれ・空気のゆらぎ・折りのゆがみ。level 0=なし 1=ふつう 2=強い。数字は標準偏差
+   ang=投げる角度(度) roll=左右の傾き(度) yaw=向き(度) dv=速さ(割合) warp=左右の翼の反りの差(度) turb=空気のゆらぎ(m/s) */
+const DIST=[null,{ang:1.5,roll:3,yaw:2,dv:.04,warp:.4,turb:.15},{ang:4,roll:8,yaw:5,dv:.10,warp:1,turb:.4}];
+function disturb(level,seed){ const d=DIST[level|0]; if(!d) return null; const r=rng(seed), g=()=>{ let u=0; for(let i=0;i<4;i++) u+=r(); return (u-2)*Math.sqrt(3); };   // ほぼ正規分布（標準偏差1）
+  const k=Math.PI/180; return {level:level|0,seed,dAng:d.ang*g(),roll:d.roll*g()*k,head:d.yaw*g()*k,dv:d.dv*g(),warp:[d.warp*g()*k,d.warp*g()*k],turb:d.turb,tseed:(seed+7919)>>>0}; }
+function makeEnv(o){ o=o||{}; const a=air(o.tempC==null?20:o.tempC,o.alt||0), head=o.head||0, cross=o.cross||0, gust=Math.hypot(o.gust||0,o.turb||0);
   if(o.rho!=null){ a.rho=o.rho; if(o.mu!=null) a.mu=o.mu; }      // 月や火星など、地球の大気の式が使えない場所
-  const ph=[1.3,4.1,2.2,5.7,0.4,3.3];
-  return {rho:a.rho,mu:a.mu,g:o.g==null?G:o.g,air:a,head,cross,gust,calm:!head&&!cross&&!gust,
+  const ph=[1.3,4.1,2.2,5.7,0.4,3.3]; if(o.seed!=null){ const r=rng(o.seed); for(let i=0;i<6;i++) ph[i]=r()*2*Math.PI; }   // 種があれば、ゆらぎの出方を毎回変える
+  return {rho:a.rho,mu:a.mu,g:o.g==null?G:o.g,air:a,head,cross,gust,warp:o.warp||null,calm:!head&&!cross&&!gust,
     windAt(p,t,out){ const y=Math.max(p[1],.05), k=Math.min(1.25,Math.pow(y/2,.2));
       let gx=0,gy=0,gz=0; if(gust){ const s=p[0]*.35, u=p[2]*.3;
         gx=gust*(.55*Math.sin(1.9*t+s+ph[0])+.45*Math.sin(4.3*t-1.7*s+ph[1]));
@@ -58,10 +65,15 @@ function fold(faces,A,B,under){
     if(a.length>=3&&Math.abs(area(a))>.5) stay.push({p:a,flip:f.flip,z:f.z});
     if(b.length>=3&&Math.abs(area(b))>.5){
       const r=b.map(q=>{ const d=(q[0]-px)*nx+(q[1]-py)*ny; return [q[0]-2*d*nx,q[1]-2*d*ny]; });
-      for(let i=0;i<r.length;i++){
-        if(r[i][0]<-0.05) return {err:'center'};                   // 中心線をこえる折りは、左右が重なるので不可
-        if(b[i][0]<.05&&r[i][0]>.5) return {err:'tear'}; }         // 中心線の上の紙が中心線から離れる折りは、左右がそこで裂けるので不可
-      move.push({p:r,flip:!f.flip,z:under?-1-f.z:2*zmax+1-f.z}); } }
+      let cross=false; for(let i=0;i<r.length;i++){
+        if(b[i][0]<.05&&Math.abs(r[i][0])>.5) return {err:'tear'};   // 中心線の上の紙が中心線から離れる折りは、左右がそこで裂けるので不可
+        if(r[i][0]<-0.05) cross=true; }
+      const z=under?-1-f.z:2*zmax+1-f.z;
+      if(!cross) move.push({p:r,flip:!f.flip,z});
+      else {                                                         // 中心線をこえて重なる折り：こえたぶんは、反対側の紙が同じだけこちらへ来ている（左右対称）
+        const pos=clipHalf(r,0,0,1,0,1), neg=clipHalf(r,0,0,1,0,-1).map(q=>[-q[0],q[1]]);
+        if(pos.length>=3&&Math.abs(area(pos))>.5) move.push({p:pos,flip:!f.flip,z});
+        if(neg.length>=3&&Math.abs(area(neg))>.5) move.push({p:neg,flip:!f.flip,z:z+(under?-.5:.5)}); } } }
   if(!move.length) return {err:'none'}; if(!stay.length) return {err:'all'};
   return {faces:rankZ(stay.concat(move)),line:{px,py,nx,ny}};
 }
@@ -162,7 +174,7 @@ function aero(pl,vb,w,out,env,fx){
   const rho=env.rho, mu=env.mu;
   if(pl.kind==='ball'){ const V=Math.hypot(vb[0],vb[1],vb[2]), q=.5*rho*V*pl.S*pl.CD; out.F[0]=-q*vb[0]; out.F[1]=-q*vb[1]; out.F[2]=-q*vb[2];
     out.M[0]=-1e-7*w[0]; out.M[1]=-1e-7*w[1]; out.M[2]=-1e-7*w[2]; return out; }
-  let Fx=0,Fy=0,Fz=0,Mx=0,My=0,Mz=0; const de=pl.elev, k3=pl.Kp/(2*Math.PI), fl=fx&&pl.flex;
+  let Fx=0,Fy=0,Fz=0,Mx=0,My=0,Mz=0; const de0=pl.elev, wp=env.warp, k3=pl.Kp/(2*Math.PI), fl=fx&&pl.flex;
   for(const e of pl.el){
     const c=e.c, lx=e.le[0]; let n0=e.n[0], n1=e.n[1], n2=e.n[2], ly=e.le[1], lz=e.le[2], j=-1;
     if(fl&&e.fi!=null){ j=e.fi+(e.sd>0?0:fl.n); const a=fl.dih+fx.th[j]; n1=Math.cos(a); n2=-Math.sin(a)*e.sd; ly+=fx.y[j]*e.n[1]; lz+=fx.y[j]*e.n[2]; }   // しなったぶんだけ、翼の面が傾き、位置が上がる
@@ -172,6 +184,7 @@ function aero(pl,vb,w,out,env,fx){
     const V=Math.sqrt(V2), al=Math.atan2(Un,Uc), q=.5*rho*V2*e.A; let CN, fcp, Mf=0;
     const cf=2.656/Math.sqrt(Math.max(1500,rho*V*c/mu));         // 板の両面の摩擦（層流・ブラジウスの式 1.328/√Re を2面ぶん）
     if(e.k===0){
+      const de=wp?de0+(e.sd>0?wp[1]:wp[0]):de0;                    // 折りのゆがみ：左右で、後ろの縁の反りが少し違う
       const aw=1-sstep(.24,.56,Math.abs(al)), ae=al-e.tau*de*aw, s=Math.sin(ae), co=Math.cos(ae);
       const cp=pl.Kp*s*Math.abs(co), cv=(pl.Kv+(1-aw)*Math.max(0,Math.PI-pl.Kv))*s*Math.abs(s);   // 付着した流れの力と、前縁のうずの力（ポルハムス）。失速後は、細長い翼でも板としての抵抗が出る
       CN=CNMAX*Math.tanh((cp+cv)/CNMAX);                         // 板が出せる上限で、なだらかに頭打ち
@@ -235,10 +248,14 @@ function qrot(q,v,o){ const w=q[0],x=q[1],y=q[2],z=q[3], tx=2*(y*v[2]-z*v[1]), t
 const _qc=[0,0,0,0];
 function qinv(q,v,o){ _qc[0]=q[0]; _qc[1]=-q[1]; _qc[2]=-q[2]; _qc[3]=-q[3]; return qrot(_qc,v,o); }
 /* 投げる：速さ(m/s)、角度(度)、手の高さ(m)。roll=投げたときの傾き(rad)、spin=軸まわりの回転(回/秒) */
+const qmul=(a,b)=>[a[0]*b[0]-a[1]*b[1]-a[2]*b[2]-a[3]*b[3], a[0]*b[1]+a[1]*b[0]+a[2]*b[3]-a[3]*b[2], a[0]*b[2]-a[1]*b[3]+a[2]*b[0]+a[3]*b[1], a[0]*b[3]+a[1]*b[2]-a[2]*b[1]+a[3]*b[0]];
 function launch(speed,angDeg,height,o){ o=o||{};
-  const g=angDeg*Math.PI/180, q=[Math.cos(g/2),0,0,Math.sin(g/2)];
-  if(o.roll){ const c=Math.cos(o.roll/2), s=Math.sin(o.roll/2), a=q.slice(); q[0]=a[0]*c; q[1]=a[0]*s; q[2]=a[3]*s; q[3]=a[3]*c; }
-  return {p:[0,height,0],v:[speed*Math.cos(g),speed*Math.sin(g),0],q,w:[(o.spin||0)*2*Math.PI,o.yaw||0,0],t:0,alpha:0,speed,hmax:height,landed:false,path:[]};
+  const dz=o.dz; if(dz){ speed*=1+dz.dv; angDeg+=dz.dAng; }                       // 外乱：速さと角度のぶれ
+  const g=angDeg*Math.PI/180, roll=(o.roll||0)+(dz?dz.roll:0), hd=(o.head||0)+(dz?dz.head:0);
+  let q=[Math.cos(g/2),0,0,Math.sin(g/2)];
+  if(roll) q=qmul(q,[Math.cos(roll/2),Math.sin(roll/2),0,0]);
+  if(hd) q=qmul([Math.cos(hd/2),0,Math.sin(hd/2),0],q);                           // 向きのぶれ（上から見て左右）
+  return {p:[0,height,0],v:[speed*Math.cos(g)*Math.cos(hd),speed*Math.sin(g),-speed*Math.cos(g)*Math.sin(hd)],q,w:[(o.spin||0)*2*Math.PI,o.yaw||0,0],t:0,alpha:0,speed,hmax:height,landed:false,path:[]};
 }
 const _vb=[0,0,0], _o={F:[0,0,0],M:[0,0,0]}, _fw=[0,0,0], _rel=[0,0,0], _wd=[0,0,0];
 function step(st,pl,dt,env){
@@ -280,5 +297,5 @@ function presets(paper){ const w=paper.pw;
 function applyFolds(paper,list){ let f=newPaper(paper); for(const [A,B,u] of list){ const r=fold(f,A,B,u); if(r.err) throw new Error('fold '+r.err); f=r.faces; } return f; }
 const toPrm=o=>({h:o.h,dih:o.dih*Math.PI/180,elev:o.elev*Math.PI/180,e:o.e||22,clips:o.clips||0,clipV:o.clipV||25});
 
-root.KH={G,FOLD_MM,stack,centroid,newFlex,flexUpdate,MATERIALS,SIZES,makePaper,air,makeEnv,newPaper,fold,clipHalf,area,bounds,spanAt,inside,buildPlane,buildRing,buildBall,aero,analyze,launch,step,fly,qrot,qinv,presets,applyFolds,toPrm,mapper};
+root.KH={G,FOLD_MM,DIST,disturb,rng,stack,centroid,newFlex,flexUpdate,MATERIALS,SIZES,makePaper,air,makeEnv,newPaper,fold,clipHalf,area,bounds,spanAt,inside,buildPlane,buildRing,buildBall,aero,analyze,launch,step,fly,qrot,qinv,presets,applyFolds,toPrm,mapper};
 })(typeof window!=='undefined'?window:globalThis);
