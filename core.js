@@ -108,7 +108,7 @@ function buildPlane(faces,prm,paper,rho){
       for(let u0=Math.floor(x0/g)*g;u0<x1;u0+=g){ const cell=clipHalf(clipHalf(band,u0,0,1,0,1),u0+g,0,1,0,-1); if(cell.length<3) continue;
         const c=centroid(cell); if(!c||c[2]<1e-7) continue; for(const sd of [1,-1]){ const q=P(c[0],c[1],sd); pts.push([q[0],q[1],q[2],c[2]]); } msum+=2*c[2]; } } }
   for(const q of pts) q[3]*=paper.mass/msum;
-  for(let i=0;i<(prm.clips||0);i++) pts.push([-(prm.clipV||25)*1e-3,-h*1e-3,0,0.0005]);   // 小さいクリップ 約0.5g
+  for(let i=0;i<(prm.clips||0);i++) pts.push([-(bd.vmin+(prm.clipV||25)+i*6)*1e-3,-h*1e-3,0,0.0005]);   // 小さいクリップ 約0.5g。折ったあとの機首から測った位置に付ける
   const mp=massProps(pts), cx=mp.cx, cy=mp.cy;
   // 翼を、前後に細長い帯に分ける
   const el=[], NW=12, dU=(bd.umax-h)/NW; let S=0, cA=0;

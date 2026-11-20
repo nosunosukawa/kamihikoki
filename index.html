@@ -253,7 +253,7 @@ details.more[open] summary{margin-bottom:6px}
       <p class="cap" id="bestCap"></p>
       <div class="stick"><button class="b go" id="throw">投げる</button></div>
     </div>
-    <p class="foot">計算のしくみ：折った紙の重なりから重心と慣性を出し、翼と胴体を細い帯に分けて、帯ごとの空気の力を足し合わせています（翼素法）。左下の流れの絵は、翼の断面まわりを2次元で解いたものです（格子ボルツマン法）。<br>
+    <p class="foot">計算のしくみ：折った紙の重なりから重心と慣性を出し、翼と胴体を細い帯に分けて、帯ごとの空気の力を足し合わせています（翼素法）。左下の流れの絵は、翼を真横から見て、まわりの空気の動きを解いたものです（格子ボルツマン法）。白い線が翼、オレンジと青は、翼の上と下で空気が渦を巻いている所（回る向きが逆）。傾きが大きくなると、上の帯が翼からはがれて乱れます（失速）。絵は見るためのもので、飛距離の計算には使っていません。<br>
 翼のしなり：翼を、付け根で固定した片持ちばりとして曲げます。1枚の曲げこわさは D＝E·t³/12（E はヤング率、t は厚さ）。重ねて折った所は、枚数ぶんだけ曲げにくくなります。E はコピー用紙 2.7GPa（規格表の曲げこわさから逆算）、新聞紙 1.3GPa、画用紙 2.0GPa の目安です。<br>
 空気抵抗：両面の摩擦（層流・ブラジウスの式）に、前縁の厚み（重なりの枚数×紙の厚さ）にかかる動圧を足しています。紙の厚さは、折れる回数の限界（重なりが約3mmまで）にも使います。谷折りと山折りは、紙の重なる順番（表と裏）が変わるだけで、この計算では飛び方は同じです。<br>
 入っていないもの：付け根の折り目のゆるみ、紙のねじれと折りぐせ、重なった紙のすき間に入る空気。<br>
@@ -263,7 +263,7 @@ details.more[open] summary{margin-bottom:6px}
 <div class="toast" id="toast" role="status"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" integrity="sha512-dLxUelApnYxpLt6K2iomGngnHO83iUvZytA3YjDUCjT0HDOHKXnVYdf3hU4JjM8uEhxf9nD1/ey98U3t2vZ0qQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-<script src="core.js?v=3"></script>
+<script src="core.js?v=4"></script>
 <script>
 (()=>{
 'use strict';
@@ -378,7 +378,7 @@ function buildMesh(){
     const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3)); g.setAttribute('color',new THREE.Float32BufferAttribute(col,3)); g.computeVertexNormals();
     model.add(new THREE.Mesh(g,new THREE.MeshLambertMaterial({vertexColors:true,side:THREE.DoubleSide})));
     const lg=new THREE.BufferGeometry(); lg.setAttribute('position',new THREE.Float32BufferAttribute(ln,3)); bendGeo={g,lg,base:Float32Array.from(pos),lbase:Float32Array.from(ln),meta:fm,lmeta:lm,on:false}; model.add(new THREE.LineSegments(lg,new THREE.LineBasicMaterial({color:0x26332e,transparent:true,opacity:.45})));
-    for(let i=0;i<D.clips;i++){ const c=new THREE.Mesh(new THREE.BoxGeometry(.03,.008,.004),new THREE.MeshLambertMaterial({color:0x8c98a4})); c.position.set(-(paper.L*.08+i*6)*1e-3-cx,-h*1e-3-cy+.003,0); model.add(c); }
+    for(let i=0;i<D.clips;i++){ const c=new THREE.Mesh(new THREE.BoxGeometry(.03,.008,.004),new THREE.MeshLambertMaterial({color:0x8c98a4})); c.position.set(-(pl.bd.vmin+paper.L*.08+i*6)*1e-3-cx,-h*1e-3-cy+.003,0); model.add(c); }
   }else if(D.kind==='ring'){
     const r=pl.D/2, mk=(len,rad,color,x)=>{ const g=new THREE.CylinderGeometry(rad,rad,len,48,1,true); g.rotateZ(Math.PI/2); const m=new THREE.Mesh(g,new THREE.MeshLambertMaterial({color,side:THREE.DoubleSide})); m.position.x=x; model.add(m); };
     mk(pl.c,r,cFront,-pl.c/2-pl.cg[0]); mk(pl.a,r+.0012,cBack.clone().lerp(new THREE.Color(0x333333),.15),-pl.a/2-pl.cg[0]);
@@ -657,7 +657,7 @@ function lbDraw(){ const {nx,ny,ux,uy,solid,img}=LB, d=img.data;
     d[p]=base+(w>0?k*225:k*10); d[p+1]=base+28+(w>0?k*110:k*150); d[p+2]=base+22+(w>0?0:k*215); d[p+3]=255; }
   LB.ctx.putImageData(img,0,0); }
 function lbTick(){ const none=env.rho<1e-6; $('.lb').style.visibility=none?'hidden':'visible'; if(none||D.kind!=='plane'||(tab!=='fly'&&tab!=='tune')) return; const target=tab==='fly'&&flight?clamp(lbAlpha,-.35,1.2):((an&&an.trim!=null?an.trim:6)*DEG);
-  if(lbDirty||Math.abs(target-lbShown)>.012){ lbShown=target; lbDirty=false; lbPlate(target); $('#lbCap').textContent=`翼の断面まわりの空気の流れ（迎角 ${Math.round(target/DEG)}°）。色はうずの向きと強さ`; }
+  if(lbDirty||Math.abs(target-lbShown)>.012){ lbShown=target; lbDirty=false; lbPlate(target); $('#lbCap').textContent=`翼を真横から見た、空気の流れ。白い線が翼で、左が前（傾き ${Math.round(target/DEG)}°）。色の帯は、翼にこすられて空気が渦を巻いている所`; }
   for(let i=0;i<5;i++) lbStep(); lbDraw(); }
 
 /* ================= 入力のつなぎ込み ================= */
@@ -690,8 +690,9 @@ let last=0, time=0;
 function tick(dt){ time+=dt;
   if(tab==='fly'){ if(flight) simulate(dt); else { const H=LOC().h; camPos.lerp(tmp.set(-1.15,H+.38,.95),Math.min(1,dt*4)); camTgt.lerp(tmp.set(.5,H,0),Math.min(1,dt*4)); }
     camera.position.copy(camPos); camera.up.set(0,1,0); camera.lookAt(camTgt); camera.fov=46; }
-  else { if(orbit.auto) orbit.yaw+=dt*.25; const M=Math.max(pl.len,pl.b||0,pl.d||0)*(D.kind==='plane'?1.25:2.3), r=Math.max(M/(.728*camera.aspect*view.fw),.62*M/(.728*view.fh)); camera.position.set(Math.sin(orbit.yaw)*Math.cos(orbit.pitch)*r,Math.sin(orbit.pitch)*r,Math.cos(orbit.yaw)*Math.cos(orbit.pitch)*r);
-    camera.up.set(0,1,0); camera.lookAt(D.kind==='ball'?0:-pl.len*.5-pl.cg[0],0,0); camera.fov=40; if(D.kind==='ring') model.rotation.x+=dt*1.5; else if(D.kind==='ball') model.rotation.y+=dt*.6; }
+  else { if(orbit.auto) orbit.yaw+=dt*.25; const M=Math.max(pl.len,pl.b||0,pl.d||0)*(D.kind==='plane'?1.5:2.3), r=Math.max(M/(.728*camera.aspect*view.fw),.62*M/(.728*view.fh)); const tx=D.kind==='ball'?0:-((pl.bd?pl.bd.vmin*1e-3:0)+pl.len*.5)-pl.cg[0];      // 機体のまん中（折ったあとの機首から測る）
+    camera.position.set(tx+Math.sin(orbit.yaw)*Math.cos(orbit.pitch)*r,Math.sin(orbit.pitch)*r,Math.cos(orbit.yaw)*Math.cos(orbit.pitch)*r);
+    camera.up.set(0,1,0); camera.lookAt(tx,0,0); camera.fov=40; if(D.kind==='ring') model.rotation.x+=dt*1.5; else if(D.kind==='ball') model.rotation.y+=dt*.6; }
   camera.updateProjectionMatrix(); lbTick(); if(sel&&tab==='make') drawFold();
   if(!(tab==='make'&&D.kind==='plane')) renderer.render(tab==='fly'?field:hangar,camera); }
 function frame(now){ const dt=Math.min(.05,(now-last)/1000||0); last=now; tick(dt); requestAnimationFrame(frame); }
