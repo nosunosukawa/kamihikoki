@@ -176,7 +176,7 @@ details.more summary{font-weight:700;font-size:13.5px;padding:9px 0;cursor:point
 details.more[open] summary{margin-bottom:6px}
 .rng{height:38px}
 .foot{font-size:11px;color:#5b6b65;margin-top:14px;line-height:1.6}
-.toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--ink);color:#fff;font-size:13px;padding:9px 14px;border-radius:8px;z-index:9;opacity:0;transition:opacity .2s;pointer-events:none;white-space:nowrap}
+.toast{position:fixed;left:50%;bottom:calc(86px + env(safe-area-inset-bottom));transform:translateX(-50%);background:var(--ink);color:#fff;font-size:13px;padding:9px 14px;border-radius:8px;z-index:9;opacity:0;transition:opacity .2s;pointer-events:none;white-space:nowrap}
 .toast.on{opacity:1}
 [hidden]{display:none!important}
 @media (max-width:760px){
@@ -803,7 +803,7 @@ function showFrame(fr,dt){ const f=flight; replay.fr=fr;
   trailGeo.setDrawRange(0,Math.max(1,Math.min(f.n,Math.floor(fr.t/f.dtr)+1)));
   { const fs={t:fr.t,p:fr.p,q:fr.q,rel:fr.rel,N:fr.fx&&fr.fx.N,th:fr.fx&&fr.fx.th,y:fr.fx&&fr.fx.y}, en=f.env||env;
     if(replay.playing) flowStep((dt||0)*rpSpeed,fs,en); else if(replay.lastT!==fr.t){ replay.lastT=fr.t; FLOW.seeded=false; for(let k=0;k<14;k++) flowStep(.02,fs,en); } }
-  hudSet(Math.hypot(fr.p[0],fr.p[2]),fr.p[1],fr.sp,fr.a/DEG,fr.t); lbAlpha=fr.a; { let m=0; if(fr.fx) for(const v of fr.fx.th) if(Math.abs(v)>Math.abs(m)) m=v; hudFlex(m,rpSpeed===1?'×1':rpSpeed===.5?'×½':'×⅕'); } airArrows(fr.p,fr.rel,fr.F);
+  hudSet(Math.hypot(fr.p[0],fr.p[2]),fr.p[1],fr.sp,fr.a/DEG,fr.t); lbAlpha=fr.a; { let m=0; if(fr.fx) for(const v of fr.fx.th) if(Math.abs(v)>Math.abs(m)) m=v; hudFlex(m,rpSpeed===1?'×1':rpSpeed===.5?'×½':'×⅕'); } if(!replay.playing&&f.st.landed&&fr===f.rec[f.rec.length-1]){ airArrows(null); flowHide(); } else airArrows(fr.p,fr.rel,fr.F);
   camAt(fr.p,0); camPos.lerp(tmp,Math.min(1,(dt||1)*7)); camTgt.lerp(model.position,Math.min(1,(dt||1)*12));
   let fl=0; if(fr.fx) for(const v of fr.fx.th) if(Math.abs(v)>Math.abs(fl)) fl=v;
   const T=f.rec[f.rec.length-1].t; $('#rpT').value=Math.round(fr.t/T*1000);
@@ -829,7 +829,7 @@ function simulate(dt){ const f=flight, st=f.st; if(!f.done){ f.acc+=dt*speedMul;
     if(st.broke!=null&&!f.brokeShown){ f.brokeShown=true; toast('翼の付け根が風に負けて折れた！'); }
     if(st.landed||st.t>=f.tmax){ recFrame(f,st); f.done=true; finish(); } }
   else { f.after+=dt; if(replay){ playReplay(dt); return; } }
-  model.position.set(st.p[0],st.p[1],st.p[2]); model.quaternion.set(st.q[1],st.q[2],st.q[3],st.q[0]); if(st.fx) bendMesh(st.fx); shadow.position.set(st.p[0],.02,st.p[2]); airArrows(st.p,st.rel,st.F);
+  model.position.set(st.p[0],st.p[1],st.p[2]); model.quaternion.set(st.q[1],st.q[2],st.q[3],st.q[0]); if(st.fx) bendMesh(st.fx); shadow.position.set(st.p[0],.02,st.p[2]); if(f.done) airArrows(null); else airArrows(st.p,st.rel,st.F);   // 着地したあとは、空気の力の矢印を出さない
   if(!f.done) flowStep(dt*speedMul,{t:st.t,p:st.p,q:st.q,rel:st.rel,N:st.fx&&st.fx.N,th:st.fx&&st.fx.th,y:st.fx&&st.fx.y},f.env||env);
   const vh=Math.hypot(st.v[0],st.v[2]); if(vh>.4&&!f.done){ tmp.set(st.v[0]/vh,0,st.v[2]/vh); dirH.lerp(tmp,Math.min(1,dt*2.5)).normalize(); }
   camAt(st.p,f.done&&camMode==='back'?f.after*.25:0);
@@ -879,7 +879,7 @@ function finish(){ const f=flight, st=f.st, dist=Math.hypot(st.p[0],st.p[2]), L=
   $('#rDist').textContent=fmt(dist,1); const pct=dist/REC_DIST*100;
   const brk=st.broke!=null?(()=>{ const b=st.brokeSide, sideTxt=b[0]&&b[1]?'両方の翼':b[0]?'右の翼':'左の翼', up=(b[0]||b[1])>0?'上':'下'; return `${fmt(st.broke,2)}秒で、${sideTxt}の付け根が風に負けて${up}へ折れました（付け根の紙ののび ${fmt(st.fx.emax*100,2)}%）。`; })():'';
   $('#rLine').textContent=diff+brk+`${L.name}から。滞空 ${fmt(st.t,2)}秒・最高 ${fmt(st.hmax,1)}m・平均 秒速${fmt(R.vavg,1)}m。`+(st.flexMax>.09?`翼のしなり 最大 ${fmt(st.flexMax*180/Math.PI,0)}°${st.flexMax>.6?'（折れ上がって揚力を失いました）':''}。`:'')+(f.dz?`今回のぶれ：角度 ${f.dz.dAng>=0?'+':''}${fmt(f.dz.dAng,1)}°・傾き ${f.dz.roll>=0?'+':''}${fmt(f.dz.roll/DEG,0)}°・向き ${f.dz.head>=0?'+':''}${fmt(f.dz.head/DEG,0)}°・速さ ${f.dz.dv>=0?'+':''}${fmt(f.dz.dv*100,0)}%。`:'')+(L.id==='yard'?`世界記録 ${REC_DIST}m の ${fmt(pct,pct<10?1:0)}%。`:'')+(f.wall?' 壁に当たりました。':L.id==='iss'?' 20秒で打ち切りました。':st.p[0]<-.5?' 後ろへ戻ってしまいました。':st.hmax>L.h+2.5&&dist<6?' 上がりすぎて失速しました。速さか反り上げを減らします。':'');
-  replay=null; $('#rpPlay').textContent='▶ もう一度見る'; $('#rpT').value=1000; $('#rp').hidden=!(f.rec&&f.rec.length>1); $('#rpInfo').textContent='';
+  replay=null; flowHide(); $('#rpPlay').textContent='▶ もう一度見る'; $('#rpT').value=1000; $('#rp').hidden=!(f.rec&&f.rec.length>1); $('#rpInfo').textContent='';
   $('#result').classList.add('on'); $('#panel').scrollTop=0; drawChart(R); $('#shareX').href=xUrl(R);
   try{ const b=JSON.parse(localStorage.getItem('khlab_best')||'{}'), k=D.kind+'@'+D.loc; if(!(b[k]>=dist)){ b[k]=Math.round(dist*10)/10; localStorage.setItem('khlab_best',JSON.stringify(b)); } }catch(e){} rankNew=rankAdd(R); gcSubmit(dist); if(rankNew>=0) toast(rankNew===0?'この端末の1位！':`この端末で ${rankNew+1}位`); renderLabels(); }
 function drawChart(R,g,x,y,W,H){ const own=!g; if(own){ const c=$('#chart'); g=c.getContext('2d'); x=0; y=0; W=c.width; H=c.height; g.clearRect(0,0,W,H); }
