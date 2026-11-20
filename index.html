@@ -120,6 +120,7 @@ select{width:100%;margin-top:3px;padding:8px 8px;border:1.5px solid var(--ink);b
 .lb p{font-size:10.5px;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.8);margin-top:3px;max-width:min(46vw,300px);line-height:1.35}
 .ff{position:absolute;right:12px;bottom:12px;display:none;background:rgba(22,36,31,.8);color:#fff;font-weight:700;font-size:12.5px;padding:7px 12px;border-radius:999px;border:1.5px solid rgba(255,255,255,.6)}
 .app[data-tab="fly"] .ff{display:block}
+.flowb{bottom:52px}
 .dzc{position:absolute;right:8px;top:60px;width:132px;height:160px;display:none;border-radius:10px;background:rgba(22,36,31,.78);border:1.5px solid rgba(255,255,255,.55);pointer-events:none}
 .app[data-tab="fly"] .dzc{display:block}
 .result{display:none;border:2px solid var(--ink);border-radius:10px;padding:12px;margin:0 0 12px;background:#fff}
@@ -216,6 +217,7 @@ details.more[open] summary{margin-bottom:6px}
       <div id="hRp" hidden><small>見直し中</small><b id="hRpS">×1</b></div>
     </div>
     <button class="ff" id="ff">早送り ×1</button>
+    <button class="ff flowb" id="flowBtn" aria-pressed="true">空気の流れ：見せる</button>
     <canvas class="dzc" id="dzc" width="240" height="290" aria-label="上から見た、投げる向きと風"></canvas>
     <div class="lb"><canvas id="lb" width="132" height="56"></canvas><p id="lbCap"></p></div>
   </div>
@@ -288,7 +290,7 @@ details.more[open] summary{margin-bottom:6px}
           <input class="rpt" id="rpT" type="range" min="0" max="1000" step="1" value="1000" aria-label="見直す時刻">
           <div class="rprow"><span class="rpl">見る位置</span><div class="seg" id="camMode"><button data-c="back">後ろ</button><button data-c="side">横</button><button data-c="top">上</button></div></div>
           <p class="rpinfo" id="rpInfo"></p>
-          <p class="cap">青い矢印＝機体に当たる空気の流れ。緑の矢印＝空気が機体を押す力（機体の重さと同じ力で 35cm）。翼のしなりは、形そのものに出ます。左下の図は翼に当たる風の角度、右上は風とぶれ。</p>
+          <p class="cap">矢印：緑＝揚力、橙＝抗力、灰＝重さ（重さと同じ力で 16cm）。翼の上の細い緑の線＝翼の帯ごとの揚力（左右の差や、しなりで減る所が見えます）。まわりの線＝機体から見た空気の流れ（風洞の煙と同じ見え方）。静かな空気は水色、翼に押しのけられたり突風で動いた空気ほど橙。翼の後ろへの吹きおろしと、翼の先のうずが見えます（揚力線理論で計算）。翼のしなりは形そのものに出ます。</p>
         </div>
         <div class="btns">
           <a class="b x" id="shareX" target="_blank" rel="noopener" href="https://x.com/intent/post">結果をXに投稿</a>
@@ -694,7 +696,7 @@ function setPaper(){ paper=K.makePaper(D.size,D.mat); $('#pH').max=Math.round(pa
 async function bestPlane(){ if(busy) return; D.size='a3'; D.mat='draw'; D.kind='plane'; setPaper(); syncInputs(); const p=K.presets(paper)[0];
   await runPreset(Object.assign({},p,{prm:{h:26,dih:-2,elev:1.5,clips:2}})); D.v=15; D.ang=4; syncInputs(); changed();
   hint('最強型：A3の画用紙のやり型に、クリップ2個。秒速15m・上向き4°で投げます。'); }
-function setTab(t){ if(flight&&!flight.done) flight=null; throwBtn(false); tab=t; airArrow.visible=forceArrow.visible=false;
+function setTab(t){ if(flight&&!flight.done) flight=null; throwBtn(false); tab=t; airArrow.visible=forceArrow.visible=weightArrow.visible=false; flowHide();
   { const tp=$('#tnPlane'), tune=$('.pane.tune'); if(t==='fly') $('#flyTuneSlot').appendChild(tp); else if(tp.parentNode!==tune) tune.insertBefore(tp,tune.firstChild); }   /* 仕上げのつまみを、飛ばす画面でも使う */ app.dataset.tab=t; $$('.tabs button').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.tab===t)));
   const sc=t==='fly'?field:hangar; if(model.parent!==sc){ sc.add(model); } if(t!=='fly'){ model.position.set(0,0,0); model.quaternion.set(0,0,0,1); model.scale.setScalar(1); orbit.auto=true; }
   else resetFlightView(); $('#panel').scrollTop=0; requestAnimationFrame(fit); }
@@ -713,25 +715,85 @@ function camAt(p,ang){ const far=D.kind==='ball'?1.9:1.2, cx=Math.cos(ang||0), s
 function fatArrow(color){ const g=new THREE.Group(), m=new THREE.MeshBasicMaterial({color,transparent:true,opacity:.92,depthTest:false});
   const sh=new THREE.Mesh(new THREE.CylinderGeometry(1,1,1,10),m), hd=new THREE.Mesh(new THREE.ConeGeometry(1,1,14),m); sh.renderOrder=hd.renderOrder=5; g.add(sh); g.add(hd); g.userData={sh,hd};
   g.setDirection=d=>{ g.quaternion.setFromUnitVectors(new V3(0,1,0),d); };
-  g.setLength=(L)=>{ const r=Math.max(.008,L*.035), h=Math.min(.12,L*.32); sh.scale.set(r,L-h,r); sh.position.y=(L-h)/2; hd.scale.set(r*2.8,h,r*2.8); hd.position.y=L-h/2; };
+  g.setLength=(L)=>{ const r=Math.max(.0025,L*.02), h=Math.min(.035,L*.3); sh.scale.set(r,L-h,r); sh.position.y=(L-h)/2; hd.scale.set(r*2.8,h,r*2.8); hd.position.y=L-h/2; };
   return g; }
-const airArrow=fatArrow(0x3fb8f0), forceArrow=fatArrow(0x22c55e);
-airArrow.visible=forceArrow.visible=false; field.add(airArrow); field.add(forceArrow);
-function airArrows(p,rel,F){ if(!rel||!F){ airArrow.visible=forceArrow.visible=false; return; }
-  const v=Math.hypot(rel[0],rel[1],rel[2]); if(v>.05){ const d=new V3(-rel[0]/v,-rel[1]/v,-rel[2]/v), L=Math.min(.9,.25+v*.06); airArrow.position.set(p[0]-d.x*(L+.08),p[1]-d.y*(L+.08),p[2]-d.z*(L+.08)); airArrow.setDirection(d); airArrow.setLength(L); airArrow.visible=true; } else airArrow.visible=false;
-  const f=Math.hypot(F[0],F[1],F[2]), W=pl.m*(LOC().g!=null?LOC().g:9.81)||1e-9, L2=Math.min(1.2,f/W*.35);
-  if(L2>.03){ forceArrow.position.set(p[0],p[1],p[2]); forceArrow.setDirection(new V3(F[0]/f,F[1]/f,F[2]/f)); forceArrow.setLength(L2); forceArrow.visible=true; } else forceArrow.visible=false; }
+const airArrow=fatArrow(0xf08a24), forceArrow=fatArrow(0x22c55e), weightArrow=fatArrow(0x9aa4ad);   // 抗力・揚力・重さ
+airArrow.visible=forceArrow.visible=weightArrow.visible=false; field.add(airArrow); field.add(forceArrow); field.add(weightArrow);
+function airArrows(p,rel,F){ const W0=pl.m*9.81||1e-9; if(!rel||!F){ airArrow.visible=forceArrow.visible=weightArrow.visible=false; return; }
+  const v=Math.hypot(rel[0],rel[1],rel[2]); if(v<.05){ airArrow.visible=forceArrow.visible=weightArrow.visible=false; return; }
+  const u=[rel[0]/v,rel[1]/v,rel[2]/v], fd=F[0]*u[0]+F[1]*u[1]+F[2]*u[2], Dv=[fd*u[0],fd*u[1],fd*u[2]], Lv=[F[0]-Dv[0],F[1]-Dv[1],F[2]-Dv[2]];   // 抗力＝空気に対する動きと逆向きの成分、揚力＝それに直角な成分
+  const put=(ar,X)=>{ const m=Math.hypot(X[0],X[1],X[2]), L=Math.min(.8,m/W0*.16); if(L<.01){ ar.visible=false; return; } ar.position.set(p[0],p[1],p[2]); ar.setDirection(new V3(X[0]/m,X[1]/m,X[2]/m)); ar.setLength(L); ar.visible=true; };
+  put(forceArrow,Lv); put(airArrow,Dv); const g=LOC().g!=null?LOC().g:9.81; put(weightArrow,[0,-pl.m*g,0]); }
+/* ================= 空気の流れ：機体のまわりに煙の粒をまき、流れを見せる =================
+   粒の速さ＝その場所の風（突風・ゆらぎこみ）＋翼が押しのける空気。翼が押しのける空気は、翼の帯ごとの力 N から
+   うずの強さ Γ＝N/(ρ·V·帯の幅) を出し、帯ごとの「馬蹄形のうず」（翼に沿ううずと、後ろへ流れる2本のうず）から
+   ビオ・サバールの式で計算する（プラントルの揚力線理論）。翼の後ろの吹きおろし・翼の先のうず・突風の乱れが、粒の動きに出る */
+const FLOW={n:240,k:16,on:true,seeded:false,trAcc:0};
+{ const segs=FLOW.n*(FLOW.k-1)*2; FLOW.p=new Float32Array(FLOW.n*3); FLOW.tr=new Float32Array(FLOW.n*FLOW.k*3); FLOW.sp=new Float32Array(FLOW.n);
+  const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.BufferAttribute(new Float32Array(segs*3),3)); g.setAttribute('color',new THREE.BufferAttribute(new Float32Array(segs*3),3));
+  FLOW.line=new THREE.LineSegments(g,new THREE.LineBasicMaterial({vertexColors:true,transparent:true,opacity:.95,depthWrite:false})); FLOW.line.frustumCulled=false; FLOW.line.visible=false; field.add(FLOW.line);
+  const lg=new THREE.BufferGeometry(); lg.setAttribute('position',new THREE.BufferAttribute(new Float32Array(60*2*3),3)); lg.setAttribute('color',new THREE.BufferAttribute(new Float32Array(60*2*3),3));
+  FLOW.comb=new THREE.LineSegments(lg,new THREE.LineBasicMaterial({vertexColors:true,depthTest:false})); FLOW.comb.renderOrder=6; FLOW.comb.frustumCulled=false; FLOW.comb.visible=false; field.add(FLOW.comb); }
+const _fq=new THREE.Quaternion(), _fv=new V3();
+const bw=(v,p)=>{ _fv.set(v[0],v[1],v[2]).applyQuaternion(_fq); return [p[0]+_fv.x,p[1]+_fv.y,p[2]+_fv.z]; };          // 機体の向き → 地面の向き
+function vortexSegs(s){ const segs=[], comb=[]; if(D.kind!=='plane'||!pl.flex||!s.N||!s.rel) return {segs,comb};
+  _fq.set(s.q[1],s.q[2],s.q[3],s.q[0]); const V=Math.hypot(s.rel[0],s.rel[1],s.rel[2]); if(V<.3) return {segs,comb};
+  const wd=[-s.rel[0]/V,-s.rel[1]/V,-s.rel[2]/V], L=2.5, rho=(flight&&flight.env||env).rho||1.2, fl=pl.flex, W0=pl.m*9.81;
+  const far=X=>[X[0]+wd[0]*L,X[1]+wd[1]*L,X[2]+wd[2]*L];
+  for(const e of pl.el){ if(e.k!==0||e.fi==null) continue; const j=e.fi+(e.sd>0?0:fl.n), a=fl.dih+(s.th?s.th[j]:0)+(e.phi||0), sd=e.sd, yy=s.y?s.y[j]:0;
+    const t=[0,Math.sin(a),Math.cos(a)*sd], n=[0,Math.cos(a),-Math.sin(a)*sd], qc=[e.le[0]-e.c/4,e.le[1]+yy*e.n[1],e.le[2]+yy*e.n[2]];
+    const A=bw([qc[0]-t[0]*e.w/2,qc[1]-t[1]*e.w/2,qc[2]-t[2]*e.w/2],s.p), B=bw([qc[0]+t[0]*e.w/2,qc[1]+t[1]*e.w/2,qc[2]+t[2]*e.w/2],s.p);
+    const G=s.N[j]/(rho*V*e.w), P1=sd>0?A:B, P2=sd>0?B:A;                                   // 翼に沿ううずは、左の先 → 右の先の向き
+    segs.push([P1,P2,G],[P2,far(P2),G],[far(P1),P1,G]);
+    const c=bw(qc,s.p); _fv.set(n[0],n[1],n[2]).applyQuaternion(_fq); const len=s.N[j]/W0*1.2; comb.push(c,[c[0]+_fv.x*len,c[1]+_fv.y*len,c[2]+_fv.z*len]); }
+  return {segs,comb}; }
+function induce(P,segs,out){ let ux=0,uy=0,uz=0; const d2=.012*.012;                       // うずの芯は 1.2cm（芯の近くで速さが無限にならないように）
+  for(const sg of segs){ const A=sg[0], B=sg[1], G=sg[2];
+    const r1x=P[0]-A[0],r1y=P[1]-A[1],r1z=P[2]-A[2], r2x=P[0]-B[0],r2y=P[1]-B[1],r2z=P[2]-B[2], r0x=B[0]-A[0],r0y=B[1]-A[1],r0z=B[2]-A[2];
+    const cx=r1y*r2z-r1z*r2y, cy=r1z*r2x-r1x*r2z, cz=r1x*r2y-r1y*r2x, r1=Math.hypot(r1x,r1y,r1z)||1e-9, r2=Math.hypot(r2x,r2y,r2z)||1e-9;
+    const c2=cx*cx+cy*cy+cz*cz+d2*(r0x*r0x+r0y*r0y+r0z*r0z), k=G/(4*Math.PI)/c2*(r0x*(r1x/r1-r2x/r2)+r0y*(r1y/r1-r2y/r2)+r0z*(r1z/r1-r2z/r2));
+    ux+=k*cx; uy+=k*cy; uz+=k*cz; }
+  out[0]=ux; out[1]=uy; out[2]=uz; return out; }
+function flowAxes(s){ const V=Math.hypot(s.rel[0],s.rel[1],s.rel[2])||1, u=[s.rel[0]/V,s.rel[1]/V,s.rel[2]/V], hz=Math.hypot(u[0],u[2])||1, r=[-u[2]/hz,0,u[0]/hz], up=[r[1]*u[2]-r[2]*u[1],r[2]*u[0]-r[0]*u[2],r[0]*u[1]-r[1]*u[0]]; return {u,r,up}; }
+function flowSeed(i,s,ahead){ const {u,r,up}=flowAxes(s), b=(pl.b||.2), R=Math.random;
+  const al=ahead?.55+R()*.25:-.6+R()*1.4, lat=R()<.5?(R()<.5?-1:1)*(b/2+(R()-.5)*.08):(R()-.5)*(b+.12), vt=(R()-.5)*.1;   // 半分は翼の先のあたりに
+  const x=u[0]*al+r[0]*lat+up[0]*vt, y=u[1]*al+r[1]*lat+up[1]*vt, z=u[2]*al+r[2]*lat+up[2]*vt;
+  FLOW.p[i*3]=x; FLOW.p[i*3+1]=y; FLOW.p[i*3+2]=z; for(let k=0;k<FLOW.k;k++){ const o=(i*FLOW.k+k)*3; FLOW.tr[o]=x; FLOW.tr[o+1]=y; FLOW.tr[o+2]=z; } FLOW.sp[i]=0; }
+function flowStep(dt,s,en){ if(!FLOW.on||!(dt>0)||!s.rel){ FLOW.line.visible=FLOW.comb.visible=false; return; }
+  const {segs,comb}=vortexSegs(s); FLOW.at=s.p; if(!FLOW.seeded){ for(let i=0;i<FLOW.n;i++) flowSeed(i,s,false); FLOW.seeded=true; }
+  const {u:ax}=flowAxes(s), b=(pl.b||.2), ui=[0,0,0], w=[0,0,0], w0=[0,0,0], nsub=Math.min(8,Math.ceil(dt/.006)), h=dt/nsub;
+  en.windAt(s.p,s.t,w0);
+  for(let i=0;i<FLOW.n;i++){ const P=[FLOW.p[i*3],FLOW.p[i*3+1],FLOW.p[i*3+2]], al=P[0]*ax[0]+P[1]*ax[1]+P[2]*ax[2];
+    if(al<-.7||Math.hypot(P[0],P[1],P[2])>b/2+.9||dt>.25){ flowSeed(i,s,dt<=.25); continue; }
+    let sp=0; for(let k=0;k<nsub;k++){ const W=[s.p[0]+P[0],s.p[1]+P[1],s.p[2]+P[2]]; en.windAt(W,s.t,w); induce(W,segs,ui);
+      const gx=w[0]-w0[0], gy=w[1]-w0[1], gz=w[2]-w0[2];                                    // 機体のいる所との風の違い（突風・ゆらぎ）
+      P[0]+=(gx+ui[0]-s.rel[0])*h; P[1]+=(gy+ui[1]-s.rel[1])*h; P[2]+=(gz+ui[2]-s.rel[2])*h; sp=Math.hypot(gx+ui[0],gy+ui[1],gz+ui[2]); }
+    FLOW.p[i*3]=P[0]; FLOW.p[i*3+1]=P[1]; FLOW.p[i*3+2]=P[2]; FLOW.sp[i]=sp; }
+  FLOW.trAcc+=dt; if(FLOW.trAcc>=1/110){ FLOW.trAcc=0; for(let i=0;i<FLOW.n;i++){ const o=i*FLOW.k*3; FLOW.tr.copyWithin(o+3,o,o+(FLOW.k-1)*3); FLOW.tr[o]=FLOW.p[i*3]; FLOW.tr[o+1]=FLOW.p[i*3+1]; FLOW.tr[o+2]=FLOW.p[i*3+2]; } }
+  flowDraw(comb); }
+function flowDraw(comb){ const pa=FLOW.line.geometry.attributes.position.array, ca=FLOW.line.geometry.attributes.color.array, K=FLOW.k; let q=0;
+  for(let i=0;i<FLOW.n;i++){ const t=Math.min(1,FLOW.sp[i]/.35), cr=.72+.28*t, cg=.9-.38*t, cb=1-.82*t;                 // 静かな空気は白っぽい水色、強く動かされた空気ほど橙
+    for(let k=0;k<K-1;k++){ const o=(i*K+k)*3, fade=k/(K-1)*.6;
+      const A=FLOW.at; pa[q]=A[0]+FLOW.tr[o]; pa[q+1]=A[1]+FLOW.tr[o+1]; pa[q+2]=A[2]+FLOW.tr[o+2]; pa[q+3]=A[0]+FLOW.tr[o+3]; pa[q+4]=A[1]+FLOW.tr[o+4]; pa[q+5]=A[2]+FLOW.tr[o+5];
+      const mix=(c,f)=>c+(.55-c)*f; ca[q]=mix(cr,fade); ca[q+1]=mix(cg,fade); ca[q+2]=mix(cb,fade); ca[q+3]=mix(cr,fade+.04); ca[q+4]=mix(cg,fade+.04); ca[q+5]=mix(cb,fade+.04); q+=6; } }
+  FLOW.line.geometry.attributes.position.needsUpdate=true; FLOW.line.geometry.attributes.color.needsUpdate=true; FLOW.line.visible=true;
+  const lp=FLOW.comb.geometry.attributes.position.array, lc=FLOW.comb.geometry.attributes.color.array; let m=0;
+  for(let i=0;i<comb.length&&m<120*3;i++){ lp[m]=comb[i][0]; lp[m+1]=comb[i][1]; lp[m+2]=comb[i][2]; lc[m]=.13; lc[m+1]=.77; lc[m+2]=.37; m+=3; }
+  for(;m<lp.length;m++) lp[m]=0; FLOW.comb.geometry.setDrawRange(0,comb.length); FLOW.comb.geometry.attributes.position.needsUpdate=true; FLOW.comb.geometry.attributes.color.needsUpdate=true; FLOW.comb.visible=comb.length>0; }
+function flowHide(){ FLOW.seeded=false; FLOW.line.visible=FLOW.comb.visible=false; }
 /* ================= 見直し：記録した飛行を、好きな速さ・好きな時刻で再生する ================= */
 let replay=null, rpSpeed=1;
 function recFrame(f,st){ if(!f.rec) return; const w=[0,0,0]; (f.env||env).windAt(st.p,st.t,w);
   const fr={t:st.t,p:st.p.slice(),q:st.q.slice(),a:st.alpha,sp:st.speed,F:st.F?st.F.slice():null,rel:st.rel?st.rel.slice():null,w};
-  if(st.fx) fr.fx={th:Float32Array.from(st.fx.th),y:Float32Array.from(st.fx.y)}; fr.brk=st.broke!=null;
+  if(st.fx) fr.fx={th:Float32Array.from(st.fx.th),y:Float32Array.from(st.fx.y),N:Float32Array.from(st.fx.N)}; fr.brk=st.broke!=null;
   f.rec.push(fr); f.nextRec=st.t+f.recDt;
   if(f.rec.length>6000){ f.rec=f.rec.filter((_,i)=>i%2===0); f.recDt*=2; } }                  // 長い飛行は、間引いて残す
 function frameAt(t){ const R=flight.rec; let lo=0, hi=R.length-1; while(hi-lo>1){ const m=(lo+hi)>>1; if(R[m].t<=t) lo=m; else hi=m; } return R[Math.abs(R[hi].t-t)<Math.abs(R[lo].t-t)?hi:lo]; }
 function showFrame(fr,dt){ const f=flight; replay.fr=fr;
   model.position.set(fr.p[0],fr.p[1],fr.p[2]); model.quaternion.set(fr.q[1],fr.q[2],fr.q[3],fr.q[0]); bendMesh(fr.fx||null); shadow.position.set(fr.p[0],.02,fr.p[2]);
   trailGeo.setDrawRange(0,Math.max(1,Math.min(f.n,Math.floor(fr.t/f.dtr)+1)));
+  { const fs={t:fr.t,p:fr.p,q:fr.q,rel:fr.rel,N:fr.fx&&fr.fx.N,th:fr.fx&&fr.fx.th,y:fr.fx&&fr.fx.y}, en=f.env||env;
+    if(replay.playing) flowStep((dt||0)*rpSpeed,fs,en); else if(replay.lastT!==fr.t){ replay.lastT=fr.t; FLOW.seeded=false; for(let k=0;k<14;k++) flowStep(.02,fs,en); } }
   hudSet(Math.hypot(fr.p[0],fr.p[2]),fr.p[1],fr.sp,fr.a/DEG,fr.t); lbAlpha=fr.a; { let m=0; if(fr.fx) for(const v of fr.fx.th) if(Math.abs(v)>Math.abs(m)) m=v; hudFlex(m,rpSpeed===1?'×1':rpSpeed===.5?'×½':'×⅕'); } airArrows(fr.p,fr.rel,fr.F);
   camAt(fr.p,0); camPos.lerp(tmp,Math.min(1,(dt||1)*7)); camTgt.lerp(model.position,Math.min(1,(dt||1)*12));
   let fl=0; if(fr.fx) for(const v of fr.fx.th) if(Math.abs(v)>Math.abs(fl)) fl=v;
@@ -740,8 +802,8 @@ function showFrame(fr,dt){ const f=flight; replay.fr=fr;
 function playReplay(dt){ const R=flight.rec; if(!R||!R.length) return; const T=R[R.length-1].t;
   if(replay.playing){ replay.t+=dt*rpSpeed; if(replay.t>=T){ replay.t=T; replay.playing=false; $('#rpPlay').textContent='▶ もう一度見る'; } }
   showFrame(frameAt(replay.t),dt); }
-function startReplay(){ if(!flight||!flight.done||!flight.rec||!flight.rec.length) return; if(!replay||!replay.playing){ const T=flight.rec[flight.rec.length-1].t; replay={t:replay&&replay.t<T-.01?replay.t:0,playing:true}; $('#rpPlay').textContent='❚❚ 止める'; } else { replay.playing=false; $('#rpPlay').textContent='▶ 続きを見る'; } }
-function resetFlightView(){ const H=LOC().h; flight=null; replay=null; airArrow.visible=forceArrow.visible=false; hudFlex(0,null); throwBtn(false); trailGeo.setDrawRange(0,0); $('#result').classList.remove('on'); model.position.set(0,H,0); aimQuat(); model.scale.setScalar(1); const a=D.aim*DEG; dirH.set(Math.cos(a),0,Math.sin(a));
+function startReplay(){ if(!flight||!flight.done||!flight.rec||!flight.rec.length) return; if(!replay||!replay.playing){ FLOW.seeded=false; const T=flight.rec[flight.rec.length-1].t; replay={t:replay&&replay.t<T-.01?replay.t:0,playing:true}; $('#rpPlay').textContent='❚❚ 止める'; } else { replay.playing=false; $('#rpPlay').textContent='▶ 続きを見る'; } }
+function resetFlightView(){ const H=LOC().h; flight=null; replay=null; airArrow.visible=forceArrow.visible=weightArrow.visible=false; flowHide(); hudFlex(0,null); throwBtn(false); trailGeo.setDrawRange(0,0); $('#result').classList.remove('on'); model.position.set(0,H,0); aimQuat(); model.scale.setScalar(1); const a=D.aim*DEG; dirH.set(Math.cos(a),0,Math.sin(a));
   camPos.set(-1.15*dirH.x,H+.38,-1.15*dirH.z); camTgt.set(.5*dirH.x,H,.5*dirH.z); hudSet(0,H,0,0,0); windVis(); shadow.position.set(0,.02,0); }
 function windVis(){ const w=[0,0,0]; env.windAt([3,3,-3.5],0,w); const sp=Math.hypot(w[0],w[2]); const c=sock.userData.c; c.rotation.set(0,0,0); c.rotation.y=Math.atan2(-w[2],w[0]); c.rotation.z=-clamp(1.45-sp*.5,0,1.45); }
 function hudFlex(th,rp){ $('#hFlexBox').hidden=D.kind!=='plane'; $('#hFlex').textContent=Math.round(Math.abs(th||0)/DEG); $('#hRp').hidden=!rp; if(rp) $('#hRpS').textContent=rp; }
@@ -759,6 +821,7 @@ function simulate(dt){ const f=flight, st=f.st; if(!f.done){ f.acc+=dt*speedMul;
     if(st.landed||st.t>=f.tmax){ recFrame(f,st); f.done=true; finish(); } }
   else { f.after+=dt; if(replay){ playReplay(dt); return; } }
   model.position.set(st.p[0],st.p[1],st.p[2]); model.quaternion.set(st.q[1],st.q[2],st.q[3],st.q[0]); if(st.fx) bendMesh(st.fx); shadow.position.set(st.p[0],.02,st.p[2]); airArrows(st.p,st.rel,st.F);
+  if(!f.done) flowStep(dt*speedMul,{t:st.t,p:st.p,q:st.q,rel:st.rel,N:st.fx&&st.fx.N,th:st.fx&&st.fx.th,y:st.fx&&st.fx.y},f.env||env);
   const vh=Math.hypot(st.v[0],st.v[2]); if(vh>.4&&!f.done){ tmp.set(st.v[0]/vh,0,st.v[2]/vh); dirH.lerp(tmp,Math.min(1,dt*2.5)).normalize(); }
   camAt(st.p,f.done&&camMode==='back'?f.after*.25:0);
   camPos.lerp(tmp,Math.min(1,dt*7)); camTgt.lerp(model.position,Math.min(1,dt*12));
@@ -1018,6 +1081,7 @@ for(const e of $$('.sl input[type=range]')){
   e.addEventListener('input',()=>slUp(e)); }
 $('#throw').addEventListener('click',throwIt);
 $('#rpPlay').addEventListener('click',startReplay);
+$('#flowBtn').addEventListener('click',()=>{ FLOW.on=!FLOW.on; const b=$('#flowBtn'); b.setAttribute('aria-pressed',String(FLOW.on)); b.textContent='空気の流れ：'+(FLOW.on?'見せる':'隠す'); if(!FLOW.on) flowHide(); });
 $('#rpT').addEventListener('input',e=>{ if(!flight||!flight.done||!flight.rec) return; const T=flight.rec[flight.rec.length-1].t; replay={t:+e.target.value/1000*T,playing:false}; $('#rpPlay').textContent='▶ 続きを見る'; });
 $$('#rpSp button').forEach(b=>{ b.setAttribute('aria-pressed',String(+b.dataset.s===rpSpeed)); b.addEventListener('click',()=>{ rpSpeed=+b.dataset.s; $$('#rpSp button').forEach(x=>x.setAttribute('aria-pressed',String(x===b))); }); });
 $$('#camMode button').forEach(b=>{ b.setAttribute('aria-pressed',String(b.dataset.c===camMode)); b.addEventListener('click',()=>{ camMode=b.dataset.c; $$('#camMode button').forEach(x=>x.setAttribute('aria-pressed',String(x===b))); }); }); $('#shareImg').addEventListener('click',shareImg); $('#shareUrl').addEventListener('click',shareUrl);
