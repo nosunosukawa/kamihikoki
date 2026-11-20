@@ -199,6 +199,21 @@ details.more[open] summary{margin-bottom:6px}
   .bar{gap:8px;padding-left:10px;padding-right:10px} .bar h1{font-size:15px} .tabs button{padding:6px 9px;font-size:12px}
   .lb canvas,.lb p{width:44vw;max-width:44vw}
 }
+/* 指で押す所は 44px 以上に（−＋は 34px、上のタブは 31px しかなかった） */
+@media (pointer:coarse),(max-width:760px){
+  .ctl{grid-template-columns:44px minmax(0,1fr) 44px}
+  .stp,.rng{height:44px}
+  .tabs button{padding:13px 10px}
+  .bar{padding-bottom:5px;padding-top:max(5px,env(safe-area-inset-top))}
+  .seg button{padding:14px 4px}
+  .kindrow #kind button{padding:14px 4px}
+  .ff{padding:11px 14px}
+  select{padding:11px 8px}
+  .rpt{height:44px;margin:0}
+  .flowb{bottom:64px}
+  .rank .rb{padding:12px 10px}
+  details.more summary,.result details.more summary{padding:12px 0}
+}
 </style>
 </head>
 <body>
@@ -318,7 +333,7 @@ details.more[open] summary{margin-bottom:6px}
       </div>
       <div class="goal" id="goalTop"></div>
       <h2>投げ方</h2>
-      <div class="sl"><label for="tV">投げる速さ</label><output id="tVo"></output><input id="tV" type="range" min="2" max="15" step="0.1" value="6"></div>
+      <div class="sl"><label for="tV">投げる速さ</label><output id="tVo"></output><input id="tV" type="range" min="2" max="15" step="0.1" value="6"><small class="slcap" id="tVCap"></small></div>
       <div class="sl"><label for="tA">投げる角度</label><output id="tAo"></output><input id="tA" type="range" min="-10" max="60" step="0.5" value="5"></div>
       <div class="sl"><label for="tH">投げる向き</label><output id="tHo"></output><input id="tH" type="range" min="-30" max="30" step="1" value="0"></div>
       <div class="sl" id="spinRow" hidden><label for="tS">回転（後ろから見て）</label><output id="tSo"></output><input id="tS" type="range" min="-15" max="15" step="1" value="10"></div>
@@ -663,7 +678,7 @@ function renderLabels(){ if(typeof drawIcons==='function') queueMicrotask(drawIc
   const o=(id,t)=>{ $('#'+id).textContent=t; };
   o('pWlo',D.wl&&pl.wlMM?'先から '+fmt(pl.wlMM,0)+' mm':'なし'); o('pWao',D.wa>0?'上へ '+D.wa+'°':D.wa<0?'下へ '+(-D.wa)+'°':'0°（平ら）'); $('#waRow').hidden=!D.wl;
   o('pHo',fmt(D.h,1)+' mm'+(D.wk?'（まん中）':'')); if(pl&&pl.keel){ const a=pl.wk/DEG, kf=pl.keel; o('pWko',Math.abs(a)<.05?'平行':(a>0?'+':'−')+fmt(Math.abs(a),1)+'°'+(Math.abs(Math.abs(a)-Math.abs(D.wk))>.3?'（限界）':'')); $('#wkCap').textContent=`胴体の深さ 前 ${fmt(kf[0],0)} mm・後ろ ${fmt(kf[1],0)} mm（＋で後ろが深い）`; } o('pDiho',fmt(D.dih,1)+'°'); o('pElevo',fmt(D.elev,2)+'°'); o('pElevDo',D.elevD?(D.elevD>0?'右':'左')+'を '+fmt(Math.abs(D.elevD),2)+'° 多く':'なし'); o('pRudo',D.rud?(D.rud>0?'右へ ':'左へ ')+fmt(Math.abs(D.rud),1)+'°':'まっすぐ'); o('pClipo',D.clips?D.clips+' 個（'+fmt(D.clips*.5,1)+'g）':'なし');
-  o('ringAo',fmt(D.ringA,1)+' mm'); o('ringNo',D.ringN+' 回'); o('tVo',fmt(D.v,1)+' m/s（時速'+Math.round(D.v*3.6)+'km）'); o('tAo',fmt(D.ang,1)+'°'); o('tHo',D.aim?(D.aim>0?'右へ ':'左へ ')+Math.abs(D.aim)+'°':'まっすぐ'); o('tSo',D.spin?(D.spin>0?'右回り ':'左回り ')+Math.abs(D.spin)+' 回/秒':'回さない');
+  o('ringAo',fmt(D.ringA,1)+' mm'); o('ringNo',D.ringN+' 回'); o('tVo',fmt(D.v,1)+' m/s'); o('tVCap','時速 '+Math.round(D.v*3.6)+'km'+(D.kind==='plane'&&an&&an.V>0&&an.state==='ok'?`。この機体がつり合って滑る速さは 秒速 ${fmt(an.V,1)}m`:'')); o('tAo',fmt(D.ang,1)+'°'); o('tHo',D.aim?(D.aim>0?'右へ ':'左へ ')+Math.abs(D.aim)+'°':'まっすぐ'); o('tSo',D.spin?(D.spin>0?'右回り ':'左回り ')+Math.abs(D.spin)+' 回/秒':'回さない');
   o('eTo',D.temp+'℃'); o('eAlto',D.alt+' m'); o('eHeado',D.head>0?'向かい風 '+fmt(D.head,1)+' m/s':D.head<0?'追い風 '+fmt(-D.head,1)+' m/s':'無風');
   o('eCrosso',D.cross>0?'左から '+fmt(D.cross,1)+' m/s':D.cross<0?'右から '+fmt(-D.cross,1)+' m/s':'なし'); o('eGusto',D.gust?'±'+fmt(D.gust,2)+' m/s':'なし');
   $$('#dist button').forEach(b=>b.setAttribute('aria-pressed',String(+b.dataset.d===D.dist))); { const d=K.DIST[D.dist];
