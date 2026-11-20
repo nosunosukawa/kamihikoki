@@ -5,7 +5,13 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
 <title>紙飛行機ラボ｜折って、計算して、飛ばす</title>
 <meta name="description" content="画面の上で紙を折って紙飛行機を作り、重心と空気の力を計算して飛ばすシミュレーター。材質・紙のサイズ・気温・風を変えられる。円筒や、くしゃくしゃに丸めた玉も投げられる。">
-<meta name="theme-color" content="#1F6B52">
+<meta name="theme-color" content="#16241f">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="紙飛行機ラボ">
 <meta property="og:type" content="website">
 <meta property="og:title" content="紙飛行機ラボ">
 <meta property="og:description" content="画面の上で紙を折り、重心と空気の力を計算して飛ばす。世界記録は 88.31m。">
@@ -278,6 +284,7 @@ details.more[open] summary{margin-bottom:6px}
 地面効果：地面すれすれでは、地面が鏡のようにはたらいて、翼の先から回りこむ空気が弱まり、浮きやすくなります。翼の幅の 1/10 の高さで、浮く力にともなう抵抗は約半分です（だ円の揚力分布の翼と、地面をはさんだ鏡像のうずから計算。プラントルの揚力線理論）。円筒には入れていません。<br>
 外乱：投げるたびに、角度・傾き・向き・速さのぶれ、空気のゆらぎ、左右の翼の反りの差を、乱数で1回ぶん決めます。「なし」にすると毎回同じ結果になります。<br>
 入っていないもの：付け根の折り目のゆるみ、紙のねじれと折りぐせ、重なった紙のすき間に入る空気。<br>
+アプリとして使う：iPhone は Safari の共有ボタンから「ホーム画面に追加」、Android は Chrome のメニューから「アプリをインストール」。全画面で開き、一度開いたあとは通信がなくても遊べます。<br>
 世界記録：飛距離 88.31m（2022年）、滞空 29.2秒（2010年）。ギネス世界記録より。<br>月の重力は 1.62m/s²、火星は重力 3.71m/s²・大気の密度 約0.020kg/m³ として計算（NASA の資料の値）。</p>
   </aside>
 </div>
@@ -800,6 +807,12 @@ setPaper(); refold(); syncInputs(); lbInit(); buildAll(); buildMesh(); bendMesh(
 if(document.fonts&&document.fonts.ready) document.fonts.ready.then(()=>{ drawFold(); });
 requestAnimationFrame(frame);
 })();
+</script>
+<script>
+/* ホーム画面から開くアプリとして使えるように、通信なしでも開ける仕組みを登録する（作業用の promo/ では登録しない） */
+if('serviceWorker' in navigator&&!/\/promo\//.test(location.pathname)) window.addEventListener('load',()=>{ navigator.serviceWorker.register('sw.js').then(()=>navigator.serviceWorker.ready).then(r=>{
+  const keep=[location.href.split('#')[0].split('?')[0]].concat(performance.getEntriesByType('resource').map(e=>e.name).filter(u=>!/[?&]t=/.test(u)));   // このページが読みこんだものを、通信なしでも使えるよう保存
+  if(r.active) r.active.postMessage({keep}); }).catch(()=>{}); });
 </script>
 </body>
 </html>
