@@ -72,10 +72,23 @@ select{width:100%;margin-top:3px;padding:8px 8px;border:1.5px solid var(--ink);b
 .b.x{background:#0b0b0b;border-color:#0b0b0b;color:#fff;width:100%}
 .b.wide{width:100%}
 .b[disabled]{opacity:.45}
-.sl{display:grid;grid-template-columns:1fr auto;gap:2px 8px;align-items:center;margin:9px 0}
+.sl{display:grid;grid-template-columns:1fr auto;gap:2px 8px;align-items:center;margin:10px 0 12px}
 .sl label{font-size:12.5px;font-weight:700}
-.sl output{font-family:var(--mono);font-size:13px;font-weight:600}
-.sl input{grid-column:1/-1;width:100%;accent-color:var(--mat);height:26px}
+.sl output{font-family:var(--mono);font-size:13px;font-weight:600;background:#eef3ef;border:1px solid var(--line);border-radius:6px;padding:0 7px;min-width:3.4em;text-align:right}
+.ctl{grid-column:1/-1;display:grid;grid-template-columns:34px minmax(0,1fr) 34px;gap:6px;align-items:center}
+.stp{height:34px;border:1.5px solid var(--ink);border-radius:9px;background:#fff;font-family:var(--mono);font-size:18px;font-weight:600;line-height:1;box-shadow:0 2px 0 rgba(22,36,31,.35);-webkit-user-select:none;user-select:none}
+.stp:active{transform:translateY(2px);box-shadow:0 0 0 rgba(22,36,31,.35);background:#eef3ef}
+.rng{position:relative;height:34px}
+.rng .tk{position:absolute;left:13px;right:13px;bottom:2px;height:7px;pointer-events:none;opacity:.55}
+.sl input[type=range]{-webkit-appearance:none;appearance:none;position:absolute;inset:0;width:100%;height:100%;background:transparent;margin:0;cursor:pointer;touch-action:pan-y}
+.sl input[type=range]::-webkit-slider-runnable-track{height:8px;border-radius:99px;border:1.5px solid var(--ink);background:linear-gradient(90deg,var(--mat) 0 var(--p,50%),#fff var(--p,50%) 100%)}
+.sl input[type=range]::-moz-range-track{height:8px;border-radius:99px;border:1.5px solid var(--ink);background:linear-gradient(90deg,var(--mat) 0 var(--p,50%),#fff var(--p,50%) 100%)}
+.sl input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:26px;height:26px;margin-top:-10.5px;border-radius:50%;background:var(--paper);border:2.5px solid var(--ink);box-shadow:0 2px 0 rgba(22,36,31,.4)}
+.sl input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;background:var(--paper);border:2.5px solid var(--ink);box-shadow:0 2px 0 rgba(22,36,31,.4)}
+.sl input[type=range]:active::-webkit-slider-thumb{background:var(--pencil)}
+.sl input[type=range]:active::-moz-range-thumb{background:var(--pencil)}
+.sl input[type=range]:focus-visible{outline:none}
+.sl input[type=range]:focus-visible::-webkit-slider-thumb{outline:3px solid var(--pencil);outline-offset:2px}
 .stats{display:grid;grid-template-columns:1fr 1fr;gap:0 14px;margin:6px 0;border-top:1.5px solid var(--ink)}
 .stats div{display:flex;justify-content:space-between;align-items:baseline;gap:6px;padding:4px 0;border-bottom:1px solid var(--line);font-size:12.5px}
 .stats b{font-family:var(--mono);font-weight:600;font-size:13px;white-space:nowrap}
@@ -124,7 +137,7 @@ select{width:100%;margin-top:3px;padding:8px 8px;border:1.5px solid var(--ink);b
 details.more{margin-top:10px;border-top:1.5px solid var(--line);padding-top:4px}
 details.more summary{font-weight:700;font-size:13.5px;padding:9px 0;cursor:pointer;color:#33443e}
 details.more[open] summary{margin-bottom:6px}
-.sl input{height:34px}
+.rng{height:38px}
 .foot{font-size:11px;color:#5b6b65;margin-top:14px;line-height:1.6}
 .toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--ink);color:#fff;font-size:13px;padding:9px 14px;border-radius:8px;z-index:9;opacity:0;transition:opacity .2s;pointer-events:none;white-space:nowrap}
 .toast.on{opacity:1}
@@ -183,11 +196,11 @@ details.more[open] summary{margin-bottom:6px}
       </div>
       <div id="mkRing" hidden>
         <p class="hint">長い辺を何回か折り返して前の縁を重くし、輪にします。回転をかけて投げる機体です。</p>
-        <div class="sl"><label for="ringA">折り返しの幅</label><output id="ringAo"></output><input id="ringA" type="range" min="10" max="40" step="1" value="20"></div>
+        <div class="sl"><label for="ringA">折り返しの幅</label><output id="ringAo"></output><input id="ringA" type="range" min="10" max="40" step="0.5" value="20"></div>
         <div class="sl"><label for="ringN">折り返す回数</label><output id="ringNo"></output><input id="ringN" type="range" min="1" max="6" step="1" value="5"></div>
       </div>
       <div id="mkBall" hidden>
-        <p class="hint">折れない折りを30回くり返して、紙がくしゃくしゃの玉になりました（裏技）。固く丸めるほど小さくなり、空気抵抗が減って遠くへ飛びます。翼がないので、空気抵抗を受けながら放物線で飛びます。そのかわり、思いきり速く投げられます。</p>
+        <p class="hint">折れない折りを15回くり返して、紙がくしゃくしゃの玉になりました（裏技）。固く丸めるほど小さくなり、空気抵抗が減って遠くへ飛びます。翼がないので、空気抵抗を受けながら放物線で飛びます。そのかわり、思いきり速く投げられます。</p>
         <div class="seg" id="tight"><button data-t="0" aria-pressed="true">ふんわり</button><button data-t="1" aria-pressed="false">固く</button><button data-t="2" aria-pressed="false">ぎゅうぎゅう</button></div>
         <div class="btns"><button class="b" id="reset2">新しい紙でやり直す</button></div>
       </div>
@@ -206,11 +219,11 @@ details.more[open] summary{margin-bottom:6px}
     <div class="pane tune">
       <div id="tnPlane">
         <h2>飛行機の形にする<small>まん中で二つに折り、翼を左右に開きます</small></h2>
-        <div class="sl"><label for="pH">胴体の深さ</label><output id="pHo"></output><input id="pH" type="range" min="6" max="40" step="1" value="16"></div>
-        <div class="sl"><label for="pDih">翼の上向きの角度（上反角）</label><output id="pDiho"></output><input id="pDih" type="range" min="-5" max="30" step="1" value="8"></div>
-        <div class="sl"><label for="pElev">後ろの縁の反り上げ</label><output id="pElevo"></output><input id="pElev" type="range" min="-5" max="25" step="0.5" value="2.5"></div>
+        <div class="sl"><label for="pH">胴体の深さ</label><output id="pHo"></output><input id="pH" type="range" min="6" max="40" step="0.5" value="16"></div>
+        <div class="sl"><label for="pDih">翼の上向きの角度（上反角）</label><output id="pDiho"></output><input id="pDih" type="range" min="-5" max="30" step="0.5" value="8"></div>
+        <div class="sl"><label for="pElev">後ろの縁の反り上げ</label><output id="pElevo"></output><input id="pElev" type="range" min="-5" max="25" step="0.25" value="2.5"></div>
         <div class="sl"><label for="pWl">翼の先を立てる（垂直フラップ）</label><output id="pWlo"></output><input id="pWl" type="range" min="0" max="4" step="1" value="0"></div>
-        <div class="sl" id="waRow"><label for="pWa">立てる角度</label><output id="pWao"></output><input id="pWa" type="range" min="-90" max="90" step="5" value="90"></div>
+        <div class="sl" id="waRow"><label for="pWa">立てる角度</label><output id="pWao"></output><input id="pWa" type="range" min="-90" max="90" step="1" value="90"></div>
         <div class="sl"><label for="pClip">先に付けるクリップ</label><output id="pClipo"></output><input id="pClip" type="range" min="0" max="3" step="1" value="0"></div>
       </div>
       <h2>診断<small>折った形から計算</small></h2>
@@ -241,8 +254,8 @@ details.more[open] summary{margin-bottom:6px}
       <label class="f"><select id="loc"></select></label>
       <p class="cap" id="locCap" style="margin-top:4px"></p>
       <h2>投げ方</h2>
-      <div class="sl"><label for="tV">投げる速さ</label><output id="tVo"></output><input id="tV" type="range" min="2" max="15" step="0.5" value="6"></div>
-      <div class="sl"><label for="tA">投げる角度</label><output id="tAo"></output><input id="tA" type="range" min="-10" max="60" step="1" value="5"></div>
+      <div class="sl"><label for="tV">投げる速さ</label><output id="tVo"></output><input id="tV" type="range" min="2" max="15" step="0.1" value="6"></div>
+      <div class="sl"><label for="tA">投げる角度</label><output id="tAo"></output><input id="tA" type="range" min="-10" max="60" step="0.5" value="5"></div>
       <div class="sl" id="spinRow" hidden><label for="tS">回転</label><output id="tSo"></output><input id="tS" type="range" min="0" max="15" step="1" value="10"></div>
       <h2>外乱<small>投げのぶれ・空気のゆらぎ・折りのゆがみ</small></h2>
       <div class="seg" id="dist"><button data-d="0">なし</button><button data-d="1">ふつう</button><button data-d="2">強い</button></div>
@@ -251,9 +264,9 @@ details.more[open] summary{margin-bottom:6px}
         <summary>空気と風を変える <small id="rhoCap" style="font-weight:500"></small></summary>
       <div class="sl"><label for="eT">気温</label><output id="eTo"></output><input id="eT" type="range" min="-10" max="40" step="1" value="20"></div>
       <div class="sl"><label for="eAlt">標高</label><output id="eAlto"></output><input id="eAlt" type="range" min="0" max="3000" step="100" value="0"></div>
-      <div class="sl"><label for="eHead">風（前後）</label><output id="eHeado"></output><input id="eHead" type="range" min="-5" max="5" step="0.5" value="0"></div>
-      <div class="sl"><label for="eCross">風（横）</label><output id="eCrosso"></output><input id="eCross" type="range" min="-3" max="3" step="0.5" value="0"></div>
-      <div class="sl"><label for="eGust">風の息（突風）</label><output id="eGusto"></output><input id="eGust" type="range" min="0" max="2" step="0.1" value="0"></div>
+      <div class="sl"><label for="eHead">風（前後）</label><output id="eHeado"></output><input id="eHead" type="range" min="-5" max="5" step="0.1" value="0"></div>
+      <div class="sl"><label for="eCross">風（横）</label><output id="eCrosso"></output><input id="eCross" type="range" min="-3" max="3" step="0.1" value="0"></div>
+      <div class="sl"><label for="eGust">風の息（突風）</label><output id="eGusto"></output><input id="eGust" type="range" min="0" max="2" step="0.05" value="0"></div>
       </details>
       <p class="cap" id="bestCap"></p>
       <div class="stick"><button class="b go" id="throw">投げる</button></div>
@@ -295,7 +308,7 @@ if(!window.THREE||!K){ $('#foldHint').textContent='部品を読み込めませ�
 const V3=THREE.Vector3;
 
 /* ================= 状態 ================= */
-const CRUSH=30, D={loc:'yard',mat:'copy',size:'a4',kind:'plane',crush:0,folds:[],preset:'',h:16,dih:8,elev:2.5,clips:0,wl:0,wa:90,ringA:20,ringN:5,tight:0,dist:1,
+const CRUSH=15, D={loc:'yard',mat:'copy',size:'a4',kind:'plane',crush:0,folds:[],preset:'',h:16,dih:8,elev:2.5,clips:0,wl:0,wa:90,ringA:20,ringN:5,tight:0,dist:1,
   v:6,ang:5,spin:10,temp:20,alt:0,head:0,cross:0,gust:0};
 let paper, faces, history=[], env, pl, an, tab='make';
 function refold(){ sel=null; faces=K.newPaper(paper); history=[]; const ok=[]; for(const f of D.folds){ const r=K.fold(faces,f[0],f[1],f[2]&1,f[2]&2); if(r.err) break; history.push(faces); faces=r.faces; ok.push(f); } D.folds=ok; }
@@ -373,8 +386,10 @@ function buildMesh(){
   bendGeo=null; disposeModel(); const [cFront,cBack]=COLORS[D.mat].map(c=>new THREE.Color(c));
   if(D.kind==='plane'){
     const pos=[],col=[],ln=[],fm=[],lm=[], P=pl.P, h=pl.h, vH=pl.vH, cx=pl.cg[0], cy=pl.cg[1], NS=pl.flex.n, dUw=(pl.bd.umax-h)/NS;
-    const put=(poly,wing,f)=>{ if(poly.length<3) return; const top=f.flip?cBack:cFront, bot=f.flip?cFront:cBack, sh=1-.035*Math.min(f.z,8);
-      for(const s of [1,-1]) for(const side of [1,-1]){ const c=side>0?top:bot, off=(.28*f.z+.06+side*.05)*1e-3;
+    const lv=new Map(), gap=Math.max(.16,paper.th||.09);                                              // 面ごとに、下で重なっている紙の枚数（全体の順番の数ではない）
+    for(const f of faces){ let n=0; for(const g of faces) if(g!==f&&g.z<f.z&&K.overlaps(f.p,g.p)) n++; lv.set(f,n); }
+    const put=(poly,wing,f)=>{ if(poly.length<3) return; const top=f.flip?cBack:cFront, bot=f.flip?cFront:cBack, L=lv.get(f)||0, sh=1-.035*Math.min(L,8);
+      for(const s of [1,-1]) for(const side of [1,-1]){ const c=side>0?top:bot, off=(gap*L+.06+side*.04)*1e-3;
         const pts=poly.map(q=>{ const p=P(q[0],q[1],s); return wing?[p[0]-cx,p[1]-cy+off,p[2]]:[p[0]-cx,p[1]-cy,p[2]+s*off]; });
         const si=q=>wing?(q[0]-h)/dUw:0, sg=wing?s:0;
         for(let i=1;i<pts.length-1;i++){ pos.push(...pts[0],...pts[i],...pts[i+1]); fm.push(si(poly[0]),sg,si(poly[i]),sg,si(poly[i+1]),sg); for(let k=0;k<3;k++) col.push(c.r*sh,c.g*sh,c.b*sh); }
@@ -496,13 +511,13 @@ function lineFold(P1,P2){ let a=P1, b=P2; if(a[0]<=0&&b[0]<=0&&(a[0]<0||b[0]<0))
     const k=(A[0]-mx)*nx+(A[1]-my)*ny, B=[A[0]-2*k*nx,A[1]-2*k*ny], r=FD(A,B); if(r.err){ if(r.err==='tear') err='tear'; continue; }
     if(!best||r.ma<best.ar) best={A,B,r,ar:r.ma}; }
   return best||{err}; }
-/* 折る。きれいに折れたら形が変わる。折れなかった手や、厚くなりすぎたあとの手は、しわとして数える。合わせて30回で玉になる */
+/* 折る。きれいに折れたら形が変わる。折れなかった手や、厚くなりすぎたあとの手は、しわとして数える。合わせて15回で玉になる */
 const tooThick=f=>f.length>160||D.folds.length>=14||K.stack(f)*paper.th>K.FOLD_MM;      // 折ったあとの束が厚すぎるか
 function tryFold(A,B){ const r=FD(A,B), over=r.err?faces.length>160||D.folds.length>=14:tooThick(r.faces), moved=Math.hypot(A[0]-B[0],A[1]-B[1])>=4;
   if(moved&&!r.err&&!over){ history.push(faces); faces=r.faces; D.folds.push([A,B,(under?1:0)|(topOnly?2:0)]); D.preset=''; changed(); hint('折れました。つづけて折るか、「次へ」で胴体と翼を折って飛行機の形にします。'); }
   else if(moved){ D.crush++; const n=D.folds.length+D.crush; if(n>=CRUSH) becomeBall(); else { changed();
       const why=over?`重なりが厚くて（約${(K.stack(r.err?faces:r.faces)*paper.th).toFixed(1)}mm）、もうきれいには折れません。`:r.err==='center'?'中心線をこえては折れません。':r.err==='tear'?'その折り方だと、紙が中心線で裂けてしまいます。':'そこでは折れません。';
-      hint(n<12?why+`しわが付きました（折り ${n}回）`:n<22?`しわだらけになってきました（折り ${n}回）`:`もう紙というより、かたまりです（折り ${n}回）`,true); } } }
+      hint(n<6?why+`しわが付きました（折り ${n}回）`:n<11?`しわだらけになってきました（折り ${n}回）`:`もう紙というより、かたまりです（折り ${n}回）`,true); } } }
 function onPaper(A){ return faces.some(f=>K.inside(f.p,A[0],A[1])||f.p.some(q=>Math.hypot(q[0]-A[0],q[1]-A[1])<1)); }
 fc.addEventListener('pointerdown',e=>{ if(busy) return; e.preventDefault(); snapTol=e.pointerType==='mouse'?12:26; const p=evToPaper(e), pt=[p.u,p.v], v=pick(pt); ghost=null; hv=null;
   let d;
@@ -558,10 +573,10 @@ function renderLabels(){
   $('#rhoCap').textContent=`空気の密度 ${fmt(env.rho,3)} kg/m³`;
   const o=(id,t)=>{ $('#'+id).textContent=t; };
   o('pWlo',D.wl&&pl.wlMM?'先から '+fmt(pl.wlMM,0)+' mm':'なし'); o('pWao',D.wa>0?'上へ '+D.wa+'°':D.wa<0?'下へ '+(-D.wa)+'°':'0°（平ら）'); $('#waRow').hidden=!D.wl;
-  o('pHo',D.h+' mm'); o('pDiho',D.dih+'°'); o('pElevo',fmt(D.elev,1)+'°'); o('pClipo',D.clips?D.clips+' 個（'+fmt(D.clips*.5,1)+'g）':'なし');
-  o('ringAo',D.ringA+' mm'); o('ringNo',D.ringN+' 回'); o('tVo',fmt(D.v,1)+' m/s（時速'+Math.round(D.v*3.6)+'km）'); o('tAo',D.ang+'°'); o('tSo','毎秒 '+D.spin+' 回転');
+  o('pHo',fmt(D.h,1)+' mm'); o('pDiho',fmt(D.dih,1)+'°'); o('pElevo',fmt(D.elev,2)+'°'); o('pClipo',D.clips?D.clips+' 個（'+fmt(D.clips*.5,1)+'g）':'なし');
+  o('ringAo',fmt(D.ringA,1)+' mm'); o('ringNo',D.ringN+' 回'); o('tVo',fmt(D.v,1)+' m/s（時速'+Math.round(D.v*3.6)+'km）'); o('tAo',fmt(D.ang,1)+'°'); o('tSo','毎秒 '+D.spin+' 回転');
   o('eTo',D.temp+'℃'); o('eAlto',D.alt+' m'); o('eHeado',D.head>0?'向かい風 '+fmt(D.head,1)+' m/s':D.head<0?'追い風 '+fmt(-D.head,1)+' m/s':'無風');
-  o('eCrosso',D.cross>0?'左から '+fmt(D.cross,1)+' m/s':D.cross<0?'右から '+fmt(-D.cross,1)+' m/s':'なし'); o('eGusto',D.gust?'±'+fmt(D.gust,1)+' m/s':'なし');
+  o('eCrosso',D.cross>0?'左から '+fmt(D.cross,1)+' m/s':D.cross<0?'右から '+fmt(-D.cross,1)+' m/s':'なし'); o('eGusto',D.gust?'±'+fmt(D.gust,2)+' m/s':'なし');
   $$('#dist button').forEach(b=>b.setAttribute('aria-pressed',String(+b.dataset.d===D.dist))); { const d=K.DIST[D.dist];
     $('#distCap').textContent=d?`投げるたびに結果が変わります。角度 ±${d.ang}°・左右の傾き ±${d.roll}°・向き ±${d.yaw}°・速さ ±${Math.round(d.dv*100)}%、空気のゆらぎ ${d.turb}m/s、左右の翼の反りの差 ±${d.warp}°（どれも、ばらつきの目安）`:'ぶれもゆらぎもなし。同じ投げ方なら、毎回同じ結果になります。'; }
   $('#spinRow').hidden=D.kind!=='ring'; $('#tV').max=D.kind==='ball'?30:D.kind==='ring'?20:15;
@@ -603,7 +618,7 @@ function drawTop(){ const c=$('#topview'), g=c.getContext('2d'), W=c.width, H=c.
   g.fillStyle='#5b6b65'; g.font='500 18px sans-serif'; g.textAlign='left'; g.fillText('← 前',8,22);
   $('#topCap').textContent='上から見た形。赤い点が重心、緑の線が中立点。重心が中立点より前にあると、機首を戻す力がはたらきます。緑の帯は胴体、赤い帯は反り上げる縁。';
 }
-function syncInputs(){ const set=(id,v)=>{ $('#'+id).value=v; }; set('loc',D.loc); set('mat',D.mat); set('size',D.size); set('pH',D.h); set('pDih',D.dih); set('pElev',D.elev); set('pClip',D.clips); set('pWl',D.wl); set('pWa',D.wa); set('ringA',D.ringA); set('ringN',D.ringN);
+function syncInputs(){ const set=(id,v)=>{ const e=$('#'+id); e.value=v; if(e.type==='range') slPaint(e); }; set('loc',D.loc); set('mat',D.mat); set('size',D.size); set('pH',D.h); set('pDih',D.dih); set('pElev',D.elev); set('pClip',D.clips); set('pWl',D.wl); set('pWa',D.wa); set('ringA',D.ringA); set('ringN',D.ringN);
   set('tV',D.v); set('tA',D.ang); set('tS',D.spin); set('eT',D.temp); set('eAlt',D.alt); set('eHead',D.head); set('eCross',D.cross); set('eGust',D.gust); }
 function setPaper(){ paper=K.makePaper(D.size,D.mat); $('#pH').max=Math.round(paper.pw*.4); D.h=clamp(D.h,6,+$('#pH').max);
   $('#presets').innerHTML=''; for(const p of K.presets(paper)){ const b=document.createElement('button'); b.className='b'; b.textContent=p.name; b.title=p.note; b.addEventListener('click',()=>runPreset(p)); $('#presets').appendChild(b); } 
@@ -730,6 +745,40 @@ window.addEventListener('keydown',e=>{ if(tab!=='make'||D.kind!=='plane') return
   else if(e.key==='Escape'&&sel){ sel=null; hint(HINT0); drawFold(); } });
 $$('.tabs button').forEach(b=>b.addEventListener('click',()=>setTab(b.dataset.tab)));
 $$('[data-go]').forEach(b=>b.addEventListener('click',()=>setTab(b.dataset.go)));
+/* ================= つまみ：目盛り・−＋ボタン・クリック感 ================= */
+/* 動かして目盛りを1つ越えるたびに、小さく「カチッ」と鳴らし、対応する端末では短く震わせる。大きな目盛りでは少し強く */
+const click=(()=>{ let ac=null, last=0, sw=null;
+  return function(big){ const now=performance.now(); if(now-last<28) return; last=now;
+    try{ if(!ac) ac=new (window.AudioContext||window.webkitAudioContext)(); if(ac.state==='suspended') ac.resume();
+      const t=ac.currentTime, o=ac.createOscillator(), g=ac.createGain(); o.type='square'; o.frequency.setValueAtTime(big?1900:2600,t);
+      g.gain.setValueAtTime(big?.05:.028,t); g.gain.exponentialRampToValueAtTime(.0001,t+.018); o.connect(g).connect(ac.destination); o.start(t); o.stop(t+.02); }catch(e){}
+    try{ if(navigator.vibrate) navigator.vibrate(big?10:4);
+      else { if(!sw){ const l=document.createElement('label'); l.style.cssText='position:fixed;left:-99px;top:0;opacity:0;pointer-events:none'; l.innerHTML='<input type="checkbox" switch>'; document.body.appendChild(l); sw=l; } sw.click(); } }catch(e){}   // iPhone の Safari は vibrate がないので、スイッチの手ごたえを借りる
+  }; })();
+function slPaint(e){ const a=+e.min, b=+e.max; e.style.setProperty('--p',((+e.value-a)/(b-a)*100)+'%'); }
+function slTicks(e){ const a=+e.min, b=+e.max, st=+e.step||1, n=Math.round((b-a)/st);
+  const nice=[.05,.1,.25,.5,1,2,2.5,5,10,20,25,50,100,200,250,500,1000];                                       // 目盛りの線は多くて40本。きりのよい間隔にする
+  const minor=nice.find(x=>x>=st-1e-9&&(b-a)/x<=40&&Math.abs(x/st-Math.round(x/st))<1e-6)||st*Math.ceil(n/40);
+  const major=nice.find(x=>x>=minor*4&&Math.abs(x/minor-Math.round(x/minor))<1e-9)||minor*5;
+  const pm=minor/(b-a)*100, pM=major/(b-a)*100, o0=((Math.ceil(a/major-1e-9)*major-a)/(b-a))*100;
+  const tk=e.parentNode.querySelector('.tk');
+  tk.style.background=`repeating-linear-gradient(90deg,var(--ink) 0 1.5px,transparent 1.5px ${pM}%) ${o0}% 0/100% 100% no-repeat,repeating-linear-gradient(90deg,var(--ink) 0 1px,transparent 1px ${pm}%) 0 100%/100% 55% no-repeat`;
+  e._major=major; e._minor=minor; }
+function slUp(e){ const a=+e.min, v=+e.value; slPaint(e); const m=e._minor||+e.step, M=e._major||m*5, k=Math.round((v-a)/m), K=Math.round((v-a)/M);
+  if(e._k!=null&&k!==e._k) click(Math.abs((v-a)/M-K)<1e-6||(v===+e.min)||(v===+e.max)); e._k=k; }
+for(const e of $$('.sl input[type=range]')){
+  const r=document.createElement('div'); r.className='rng'; const tk=document.createElement('div'); tk.className='tk'; r.appendChild(tk);
+  const c=document.createElement('div'); c.className='ctl'; e.parentNode.insertBefore(c,e); r.appendChild(e);
+  const mk=(t,d,lab)=>{ const b=document.createElement('button'); b.className='stp'; b.type='button'; b.textContent=t; b.setAttribute('aria-label',lab);
+    let tm=null; const go=()=>{ const v=+e.value; if(d>0) e.stepUp(); else e.stepDown(); if(+e.value!==v){ e.dispatchEvent(new Event('input',{bubbles:true})); click(false); } };
+    const stop=()=>{ clearTimeout(tm); tm=null; };
+    b.addEventListener('pointerdown',ev=>{ ev.preventDefault(); go(); let dl=380; const rep=()=>{ go(); dl=Math.max(45,dl*.82); tm=setTimeout(rep,dl); }; tm=setTimeout(rep,dl); });
+    ['pointerup','pointerleave','pointercancel'].forEach(n=>b.addEventListener(n,stop));
+    b.addEventListener('keydown',ev=>{ if(ev.key==='Enter'||ev.key===' '){ ev.preventDefault(); go(); } }); return b; };
+  const lab=(document.querySelector(`label[for="${e.id}"]`)||{}).textContent||'';
+  c.appendChild(mk('−',-1,lab+'を少し下げる')); c.appendChild(r); c.appendChild(mk('+',1,lab+'を少し上げる'));
+  slTicks(e); slPaint(e); e._k=Math.round((+e.value-+e.min)/(e._minor||+e.step));
+  e.addEventListener('input',()=>slUp(e)); }
 $('#throw').addEventListener('click',throwIt); $('#shareImg').addEventListener('click',shareImg); $('#shareUrl').addEventListener('click',shareUrl);
 addEventListener('resize',fit); addEventListener('orientationchange',()=>setTimeout(fit,250));
 
