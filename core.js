@@ -218,7 +218,10 @@ function buildRing(paper,o,rho){
   return {kind:'ring',m:mp.m,cg:[mp.cx,mp.cy],I:fi.I,Iinv:fi.Iinv,el,S:D*c,b:D,AR,Kp:4*Kf/Math.PI,Kv:0.9,mac:c,elev:0,D,c,a:am,n,len:c,cgPct:-mp.cx/c*100};
 }
 /* ---------- くしゃくしゃ玉：丸めた紙。翼はなく、空気抵抗だけを受ける ---------- */
-function buildBall(paper,o){ const d=(o.tight?0.2:0.27)*Math.sqrt(paper.W*paper.L)*1e-3, m=paper.mass, I=.4*m*d*d/4;
+/* 玉の直径は、紙の体積 ÷ 詰まり具合（玉のうち紙が占める割合）から出す。詰まり具合は、ふんわり 6%・固く 10%・ぎゅうぎゅう 22%
+   （くしゃくしゃに丸めた紙は約9割が空気。アルミ箔を丸めた玉の測定で 6〜22%：Cambou & Menon 2011） */
+const BALL_FILL=[.06,.10,.22];
+function buildBall(paper,o){ const V=paper.W*paper.L*(paper.th||.09), f=BALL_FILL[clamp(o.tight|0,0,2)], d=Math.cbrt(6*V/(Math.PI*f))*1e-3, m=paper.mass, I=.4*m*d*d/4;
   return {kind:'ball',m,cg:[0,0],I:[I,I,I,0],Iinv:[1/I,0,1/I,1/I],el:[],S:Math.PI*d*d/4,d,CD:0.6,Kp:0,Kv:0,elev:0,len:d,mac:d,cgPct:50}; }
 
 /* ---------- 地面効果 ---------- */

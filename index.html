@@ -174,10 +174,9 @@ details.more[open] summary{margin-bottom:6px}
   <aside class="panel" id="panel">
     <!-- 1 つくる -->
     <div class="pane make">
-      <div class="prow kindrow"><span>つくるもの</span><div class="seg" id="kind">
+      <div class="prow kindrow"><span>つくるもの</span><div class="seg" id="kind" style="grid-template-columns:1fr 1fr">
         <button data-kind="plane" aria-pressed="true">飛行機</button>
         <button data-kind="ring" aria-pressed="false">円筒</button>
-        <button data-kind="ball" aria-pressed="false">紙の玉</button>
       </div></div>
       <div id="mkPlane">
         <div class="prow"><span>お手本で折る</span><div id="presets"></div></div>
@@ -188,8 +187,8 @@ details.more[open] summary{margin-bottom:6px}
         <div class="sl"><label for="ringN">折り返す回数</label><output id="ringNo"></output><input id="ringN" type="range" min="1" max="6" step="1" value="5"></div>
       </div>
       <div id="mkBall" hidden>
-        <p class="hint">紙をくしゃくしゃに丸めた玉です（折れない折りを30回くり返しても、こうなります）。翼がないので、空気抵抗を受けながら放物線で飛びます。そのかわり、思いきり速く投げられます。</p>
-        <div class="seg" id="tight" style="grid-template-columns:1fr 1fr"><button data-t="0" aria-pressed="true">ふんわり丸める</button><button data-t="1" aria-pressed="false">固くにぎる</button></div>
+        <p class="hint">折れない折りを30回くり返して、紙がくしゃくしゃの玉になりました（裏技）。固く丸めるほど小さくなり、空気抵抗が減って遠くへ飛びます。翼がないので、空気抵抗を受けながら放物線で飛びます。そのかわり、思いきり速く投げられます。</p>
+        <div class="seg" id="tight"><button data-t="0" aria-pressed="true">ふんわり</button><button data-t="1" aria-pressed="false">固く</button><button data-t="2" aria-pressed="false">ぎゅうぎゅう</button></div>
         <div class="btns"><button class="b" id="reset2">新しい紙でやり直す</button></div>
       </div>
       <details class="more">
@@ -272,7 +271,7 @@ details.more[open] summary{margin-bottom:6px}
 <div class="toast" id="toast" role="status"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" integrity="sha512-dLxUelApnYxpLt6K2iomGngnHO83iUvZytA3YjDUCjT0HDOHKXnVYdf3hU4JjM8uEhxf9nD1/ey98U3t2vZ0qQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-<script src="core.js?v=8"></script>
+<script src="core.js?v=9"></script>
 <script>
 (()=>{
 'use strict';
@@ -313,7 +312,7 @@ function encode(){ const o=Object.assign({},D,{folds:D.folds.map(f=>[f[0][0],f[0
 function decode(h){ try{ const o=JSON.parse(decodeURIComponent(escape(atob(h.replace(/-/g,'+').replace(/_/g,'/')))));
     const num=(k,a,b)=>{ const v=Number(o[k]); if(Number.isFinite(v)) D[k]=clamp(v,a,b); };
     if(K.MATERIALS.some(m=>m.id===o.mat)) D.mat=o.mat; if(K.SIZES.some(s=>s.id===o.size)) D.size=o.size; if(['plane','ring','ball'].includes(o.kind)) D.kind=o.kind; if(LOCS.some(l=>l.id===o.loc)) D.loc=o.loc;
-    num('crush',0,CRUSH); num('h',6,40); num('dih',-5,30); num('elev',-5,25); num('clips',0,3); num('wl',0,4); D.wl=Math.round(D.wl); num('wa',-90,90); num('ringA',10,40); num('ringN',1,6); num('tight',0,1); num('v',2,30); num('ang',-10,60); num('spin',0,15);
+    num('crush',0,CRUSH); num('h',6,40); num('dih',-5,30); num('elev',-5,25); num('clips',0,3); num('wl',0,4); D.wl=Math.round(D.wl); num('wa',-90,90); num('ringA',10,40); num('ringN',1,6); num('tight',0,2); D.tight=Math.round(D.tight); num('v',2,30); num('ang',-10,60); num('spin',0,15);
     num('dist',0,2); D.dist=Math.round(D.dist); num('temp',-10,40); num('alt',0,3000); num('head',-5,5); num('cross',-3,3); num('gust',0,2);
     if(Array.isArray(o.folds)) D.folds=o.folds.slice(0,14).filter(f=>Array.isArray(f)&&(f.length===4||f.length===5)&&f.every(x=>Number.isFinite(Number(x)))).map(f=>[[clamp(+f[0],-400,400),clamp(+f[1],-100,600)],[clamp(+f[2],-400,400),clamp(+f[3],-100,600)],[1,2,3].includes(+f[4])?+f[4]:0]);
     return true; }catch(e){ return false; } }
@@ -613,20 +612,21 @@ function setPaper(){ paper=K.makePaper(D.size,D.mat); $('#pH').max=Math.round(pa
 async function bestPlane(){ if(busy) return; D.size='a3'; D.mat='draw'; D.kind='plane'; setPaper(); syncInputs(); const p=K.presets(paper)[0];
   await runPreset(Object.assign({},p,{prm:{h:26,dih:-2,elev:1.5,clips:2}})); D.v=15; D.ang=4; syncInputs(); changed();
   hint('最強型：A3の画用紙のやり型に、クリップ2個。秒速15m・上向き4°で投げます。'); }
-function setTab(t){ if(t==='fly'&&flight&&!flight.done) return; tab=t; app.dataset.tab=t; $$('.tabs button').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.tab===t)));
+function setTab(t){ if(flight&&!flight.done) flight=null; throwBtn(false); tab=t; app.dataset.tab=t; $$('.tabs button').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.tab===t)));
   const sc=t==='fly'?field:hangar; if(model.parent!==sc){ sc.add(model); } if(t!=='fly'){ model.position.set(0,0,0); model.quaternion.set(0,0,0,1); model.scale.setScalar(1); orbit.auto=true; }
   else resetFlightView(); $('#panel').scrollTop=0; requestAnimationFrame(fit); }
 
 /* ================= 飛行 ================= */
 let flight=null; const camPos=new V3(), camTgt=new V3(), tmp=new V3(), dirH=new V3(1,0,0);
-function resetFlightView(){ const H=LOC().h; flight=null; trailGeo.setDrawRange(0,0); $('#result').classList.remove('on'); model.position.set(0,H,0); model.quaternion.setFromAxisAngle(new V3(0,0,1),D.ang*DEG); model.scale.setScalar(1); dirH.set(1,0,0);
+function resetFlightView(){ const H=LOC().h; flight=null; throwBtn(false); trailGeo.setDrawRange(0,0); $('#result').classList.remove('on'); model.position.set(0,H,0); model.quaternion.setFromAxisAngle(new V3(0,0,1),D.ang*DEG); model.scale.setScalar(1); dirH.set(1,0,0);
   camPos.set(-1.15,H+.38,.95); camTgt.set(.5,H,0); hudSet(0,H,0,0,0); windVis(); shadow.position.set(0,.02,0); }
 function windVis(){ const w=[0,0,0]; env.windAt([3,3,-3.5],0,w); const sp=Math.hypot(w[0],w[2]); const c=sock.userData.c; c.rotation.set(0,0,0); c.rotation.y=Math.atan2(-w[2],w[0]); c.rotation.z=-clamp(1.45-sp*.5,0,1.45); }
 function hudSet(d,alt,v,aoa,t){ $('#hDist').textContent=fmt(d,1); $('#hAlt').textContent=fmt(Math.max(0,alt),1); $('#hSpd').textContent=fmt(v,1); $('#hAoa').textContent=Math.round(aoa); $('#hTime').textContent=fmt(t,1); }
-function throwIt(){ if(flight&&!flight.done) return; buildAll(); resetFlightView();
+function throwBtn(on){ const b=$('#throw'); b.disabled=false; b.textContent=on?'投げ直す':'投げる'; }
+function throwIt(){ buildAll(); resetFlightView();
   const L=LOC(), sp=L.g!=null, dz=K.disturb(D.dist,Math.floor(Math.random()*1e9));
   const fenv=dz?Object.assign(K.makeEnv({tempC:D.temp,alt:D.alt,head:sp?0:D.head,cross:sp?0:D.cross,gust:sp?0:D.gust,turb:sp?0:dz.turb,seed:dz.tseed,warp:dz.warp,g:L.g,rho:L.rho,mu:L.mu}),{noGround:!!L.noGround}):env;
-  const st=K.launch(D.v,D.ang,L.h,{roll:.02,spin:D.kind==='ring'?D.spin:0,dz}); flight={st,env:fenv,dz,n:0,path:[[0,L.h]],done:false,after:0,acc:0,vsum:0,vn:0,dtr:L.h>20?.1:.02,tmax:L.tmax||300,iss:L.id==='iss'}; $('#throw').disabled=true; $('#panel').scrollTop=0; }
+  const st=K.launch(D.v,D.ang,L.h,{roll:.02,spin:D.kind==='ring'?D.spin:0,dz}); flight={st,env:fenv,dz,n:0,path:[[0,L.h]],done:false,after:0,acc:0,vsum:0,vn:0,dtr:L.h>20?.1:.02,tmax:L.tmax||300,iss:L.id==='iss'}; throwBtn(true); $('#panel').scrollTop=0; }
 function simulate(dt){ const f=flight, st=f.st; if(!f.done){ f.acc+=dt*speedMul; const h=.0005; let n=0; while(f.acc>=h&&n<1300&&!st.landed&&st.t<f.tmax){ K.step(st,pl,h,f.env||env); f.acc-=h; n++;
       if(f.iss&&(st.p[0]>10.9||st.p[0]<-.05||Math.abs(st.p[2])>1.95||st.p[1]<.05||st.p[1]>3.95)){ st.landed=true; f.wall=true; } } if(n>=1300) f.acc=0;
     f.vsum+=st.speed; f.vn++;
@@ -639,7 +639,7 @@ function simulate(dt){ const f=flight, st=f.st; if(!f.done){ f.acc+=dt*speedMul;
   tmp.set(st.p[0]-(dirH.x*cx-dirH.z*sx)*far+dirH.z*.6, Math.max(.25,st.p[1]+.4), st.p[2]-(dirH.z*cx+dirH.x*sx)*far-dirH.x*.6);
   camPos.lerp(tmp,Math.min(1,dt*7)); camTgt.lerp(model.position,Math.min(1,dt*12));
   hudSet(Math.hypot(st.p[0],st.p[2]),st.p[1],st.speed,st.alpha/DEG,st.t); lbAlpha=st.alpha; }
-function finish(){ const f=flight, st=f.st, dist=Math.hypot(st.p[0],st.p[2]), L=LOC(); $('#throw').disabled=false;
+function finish(){ const f=flight, st=f.st, dist=Math.hypot(st.p[0],st.p[2]), L=LOC(); throwBtn(false);
   const R={dist,time:st.t,hmax:st.hmax,vavg:f.vsum/Math.max(1,f.vn),path:f.path,kind:D.kind,loc:L,name:D.kind==='plane'?(K.presets(paper).find(p=>p.id===D.preset)||{name:'自分で折った機体'}).name:KIND_NAME[D.kind]}; f.R=R;
   $('#rDist').textContent=fmt(dist,1); const pct=dist/REC_DIST*100;
   $('#rLine').textContent=`${L.name}から。滞空 ${fmt(st.t,2)}秒・最高 ${fmt(st.hmax,1)}m・平均 秒速${fmt(R.vavg,1)}m。`+(st.flexMax>.09?`翼のしなり 最大 ${fmt(st.flexMax*180/Math.PI,0)}°${st.flexMax>.6?'（折れ上がって揚力を失いました）':''}。`:'')+(f.dz?`今回のぶれ：角度 ${f.dz.dAng>=0?'+':''}${fmt(f.dz.dAng,1)}°・傾き ${f.dz.roll>=0?'+':''}${fmt(f.dz.roll/DEG,0)}°・向き ${f.dz.head>=0?'+':''}${fmt(f.dz.head/DEG,0)}°・速さ ${f.dz.dv>=0?'+':''}${fmt(f.dz.dv*100,0)}%。`:'')+(L.id==='yard'?`世界記録 ${REC_DIST}m の ${fmt(pct,pct<10?1:0)}%。`:'')+(f.wall?' 壁に当たりました。':L.id==='iss'?' 20秒で打ち切りました。':st.p[0]<-.5?' 後ろへ戻ってしまいました。':st.hmax>L.h+2.5&&dist<6?' 上がりすぎて失速しました。速さか反り上げを減らします。':'');
