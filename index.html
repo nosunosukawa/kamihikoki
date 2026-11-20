@@ -237,6 +237,8 @@ details.more[open] summary{margin-bottom:6px}
         <div class="sl"><label for="pWk">翼の折り線の傾き</label><output id="pWko"></output><input id="pWk" type="range" min="-15" max="15" step="0.5" value="0"><small class="slcap" id="wkCap"></small></div>
         <div class="sl"><label for="pDih">翼の上向きの角度（上反角）</label><output id="pDiho"></output><input id="pDih" type="range" min="-5" max="30" step="0.5" value="8"></div>
         <div class="sl"><label for="pElev">後ろの縁の反り上げ</label><output id="pElevo"></output><input id="pElev" type="range" min="-5" max="25" step="0.25" value="2.5"></div>
+        <div class="sl"><label for="pElevD">左右の反りの差（曲がる向き）</label><output id="pElevDo"></output><input id="pElevD" type="range" min="-4" max="4" step="0.25" value="0"></div>
+        <div class="sl"><label for="pRud">胴体の後ろを曲げる（方向舵）</label><output id="pRudo"></output><input id="pRud" type="range" min="-10" max="10" step="0.5" value="0"></div>
         <div class="sl"><label for="pWl">翼の先を立てる（垂直フラップ）</label><output id="pWlo"></output><input id="pWl" type="range" min="0" max="4" step="1" value="0"></div>
         <div class="sl" id="waRow"><label for="pWa">立てる角度</label><output id="pWao"></output><input id="pWa" type="range" min="-90" max="90" step="1" value="90"></div>
         <div class="sl"><label for="pClip">先に付けるクリップ</label><output id="pClipo"></output><input id="pClip" type="range" min="0" max="3" step="1" value="0"></div>
@@ -268,7 +270,7 @@ details.more[open] summary{margin-bottom:6px}
       <h2>投げ方</h2>
       <div class="sl"><label for="tV">投げる速さ</label><output id="tVo"></output><input id="tV" type="range" min="2" max="15" step="0.1" value="6"></div>
       <div class="sl"><label for="tA">投げる角度</label><output id="tAo"></output><input id="tA" type="range" min="-10" max="60" step="0.5" value="5"></div>
-      <div class="sl" id="spinRow" hidden><label for="tS">回転</label><output id="tSo"></output><input id="tS" type="range" min="0" max="15" step="1" value="10"></div>
+      <div class="sl" id="spinRow" hidden><label for="tS">回転（後ろから見て）</label><output id="tSo"></output><input id="tS" type="range" min="-15" max="15" step="1" value="10"></div>
       <div id="flyTune">
         <h2>機体の調整<small>結果を見て直し、そのまま投げ直せます</small></h2>
         <p class="hint" id="verdictFly"></p>
@@ -295,6 +297,8 @@ details.more[open] summary{margin-bottom:6px}
 翼のしなり：翼を、付け根で固定した片持ちばりとして曲げます。1枚の曲げこわさは D＝E·t³/12（E はヤング率、t は厚さ）。重ねて折った所は、枚数ぶんだけ曲げにくくなります。E はコピー用紙 2.7GPa（規格表の曲げこわさから逆算）、新聞紙 1.3GPa、画用紙 2.0GPa の目安です。<br>
 空気抵抗：両面の摩擦（層流・ブラジウスの式）に、前縁の厚み（重なりの枚数×紙の厚さ）にかかる動圧を足しています。紙の厚さは、折れる回数の限界（重なりが約3mmまで）にも使います。谷折りと山折りは、紙の重なる順番（表と裏）が変わるだけで、この計算では飛び方は同じです。「上だけ」にすると、線を引いた所のいちばん上の紙だけが折り返ります（その紙とつながっていて一緒に動くしかない紙と、上にのっている紙は、いっしょに動きます）。<br>
 翼の先を立てる（垂直フラップ）：立てた部分は横すべりを止めて向きを安定させ、翼の先から空気が回りこむのを減らします（縦横比が 1＋1.9×高さ÷翼の幅 倍。ヘルナーの式）。そのかわり、浮く力を出す翼の面積は減ります。<br>
+左右の反りの差・方向舵：右の翼の後ろの縁を左より多く反らせると、右の翼の浮く力が減って右へ傾き、右へ曲がります。胴体の後ろを右へ曲げると、後ろが左へ押されて機首が右を向きます。<br>
+円筒の回転：回っている輪に機首を上げる力がかかると、向きが横へずれていきます（ジャイロの歳差。ライフル弾が回転の向きへそれるのと同じ）。後ろから見て右回りなら右へ、左回りなら左へ曲がります。<br>
 翼の折り線の傾き：胴体と翼の境目の折り線を、紙の中心線に対して傾けます。後ろが深いと翼の面積が前に寄り、前が深いと後ろに寄ります。傾けた折り線を機体の前後の向きとして計算します。<br>
 地面効果：地面すれすれでは、地面が鏡のようにはたらいて、翼の先から回りこむ空気が弱まり、浮きやすくなります。翼の幅の 1/10 の高さで、浮く力にともなう抵抗は約半分です（だ円の揚力分布の翼と、地面をはさんだ鏡像のうずから計算。プラントルの揚力線理論）。円筒には入れていません。<br>
 外乱：投げるたびに、角度・傾き・向き・速さのぶれ、空気のゆらぎ、左右の翼の反りの差を、乱数で1回ぶん決めます。「なし」にすると毎回同じ結果になります。<br>
@@ -306,7 +310,7 @@ details.more[open] summary{margin-bottom:6px}
 <div class="toast" id="toast" role="status"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" integrity="sha512-dLxUelApnYxpLt6K2iomGngnHO83iUvZytA3YjDUCjT0HDOHKXnVYdf3hU4JjM8uEhxf9nD1/ey98U3t2vZ0qQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-<script src="core.js?v=10"></script>
+<script src="core.js?v=11"></script>
 <script>
 (()=>{
 'use strict';
@@ -330,13 +334,13 @@ if(!window.THREE||!K){ $('#foldHint').textContent='部品を読み込めませ�
 const V3=THREE.Vector3;
 
 /* ================= 状態 ================= */
-const CRUSH=15, D={loc:'yard',mat:'copy',size:'a4',kind:'plane',crush:0,folds:[],preset:'',h:16,wk:0,dih:8,elev:2.5,clips:0,wl:0,wa:90,ringA:20,ringN:5,tight:0,dist:1,
+const CRUSH=15, D={loc:'yard',mat:'copy',size:'a4',kind:'plane',crush:0,folds:[],preset:'',h:16,wk:0,elevD:0,rud:0,dih:8,elev:2.5,clips:0,wl:0,wa:90,ringA:20,ringN:5,tight:0,dist:1,
   v:6,ang:5,spin:10,temp:20,alt:0,head:0,cross:0,gust:0};
 let paper, faces, history=[], env, pl, an, tab='make';
 function refold(){ sel=null; faces=K.newPaper(paper); history=[]; const ok=[]; for(const f of D.folds){ const r=K.fold(faces,f[0],f[1],f[2]&1,f[2]&2); if(r.err) break; history.push(faces); faces=r.faces; ok.push(f); } D.folds=ok; }
 function buildAll(){
   const L=LOC(), sp=L.g!=null; env=K.makeEnv({tempC:D.temp,alt:D.alt,head:sp?0:D.head,cross:sp?0:D.cross,gust:sp?0:D.gust,g:L.g,rho:L.rho,mu:L.mu}); env.noGround=!!L.noGround;
-  if(D.kind==='plane') pl=K.buildPlane(faces,K.toPrm({wk:D.wk,wl:D.wl,wa:D.wa,h:D.h,dih:D.dih,elev:D.elev,clips:D.clips,e:Math.max(12,paper.L*.075),clipV:paper.L*.08}),paper,env.rho);
+  if(D.kind==='plane') pl=K.buildPlane(faces,K.toPrm({elevD:D.elevD,rud:D.rud,wk:D.wk,wl:D.wl,wa:D.wa,h:D.h,dih:D.dih,elev:D.elev,clips:D.clips,e:Math.max(12,paper.L*.075),clipV:paper.L*.08}),paper,env.rho);
   else if(D.kind==='ring') pl=K.buildRing(paper,{a:D.ringA,n:D.ringN},env.rho)||K.buildRing(paper,{a:10,n:1},env.rho);
   else pl=K.buildBall(paper,{tight:D.tight});
   an=K.analyze(pl,env); glideFx=null;
@@ -347,7 +351,7 @@ function encode(){ const o=Object.assign({},D,{folds:D.folds.map(f=>[f[0][0],f[0
 function decode(h){ try{ const o=JSON.parse(decodeURIComponent(escape(atob(h.replace(/-/g,'+').replace(/_/g,'/')))));
     const num=(k,a,b)=>{ const v=Number(o[k]); if(Number.isFinite(v)) D[k]=clamp(v,a,b); };
     if(K.MATERIALS.some(m=>m.id===o.mat)) D.mat=o.mat; if(K.SIZES.some(s=>s.id===o.size)) D.size=o.size; if(['plane','ring','ball'].includes(o.kind)) D.kind=o.kind; if(LOCS.some(l=>l.id===o.loc)) D.loc=o.loc;
-    num('crush',0,CRUSH); num('h',6,40); num('wk',-15,15); num('dih',-5,30); num('elev',-5,25); num('clips',0,3); num('wl',0,4); D.wl=Math.round(D.wl); num('wa',-90,90); num('ringA',10,40); num('ringN',1,6); num('tight',0,2); D.tight=Math.round(D.tight); num('v',2,30); num('ang',-10,60); num('spin',0,15);
+    num('crush',0,CRUSH); num('h',6,40); num('wk',-15,15); num('elevD',-4,4); num('rud',-10,10); num('dih',-5,30); num('elev',-5,25); num('clips',0,3); num('wl',0,4); D.wl=Math.round(D.wl); num('wa',-90,90); num('ringA',10,40); num('ringN',1,6); num('tight',0,2); D.tight=Math.round(D.tight); num('v',2,30); num('ang',-10,60); num('spin',-15,15);
     num('dist',0,2); D.dist=Math.round(D.dist); num('temp',-10,40); num('alt',0,3000); num('head',-5,5); num('cross',-3,3); num('gust',0,2);
     if(Array.isArray(o.folds)) D.folds=o.folds.slice(0,14).filter(f=>Array.isArray(f)&&(f.length===4||f.length===5)&&f.every(x=>Number.isFinite(Number(x)))).map(f=>[[clamp(+f[0],-400,400),clamp(+f[1],-100,600)],[clamp(+f[2],-400,400),clamp(+f[3],-100,600)],[1,2,3].includes(+f[4])?+f[4]:0]);
     return true; }catch(e){ return false; } }
@@ -584,7 +588,7 @@ function freshPaper(){ D.folds=[]; D.crush=0; D.preset=''; if(D.kind==='ball'){ 
 function hint(t,bad){ const h=$('#foldHint'); h.textContent=t; h.classList.toggle('bad',!!bad); }
 let busy=false;
 async function runPreset(p){ if(busy) return; busy=true; D.folds=[]; D.crush=0; refold(); D.preset=p.id; changed(); for(const f of p.folds){ await new Promise(r=>setTimeout(r,420)); const r=K.fold(faces,f[0],f[1],f[2]&1,f[2]&2); if(r.err) break; history.push(faces); faces=r.faces; D.folds.push([f[0].slice(),f[1].slice(),f[2]|0]); changed(); }
-  D.h=p.prm.h; D.wk=p.prm.wk||0; D.dih=p.prm.dih; D.elev=p.prm.elev; D.clips=p.prm.clips; syncInputs(); changed(); hint(`お手本「${p.name}」を折りました。${p.note}。`); busy=false; }
+  D.h=p.prm.h; D.wk=p.prm.wk||0; D.elevD=p.prm.elevD||0; D.rud=p.prm.rud||0; D.dih=p.prm.dih; D.elev=p.prm.elev; D.clips=p.prm.clips; syncInputs(); changed(); hint(`お手本「${p.name}」を折りました。${p.note}。`); busy=false; }
 
 /* ================= 画面の更新 ================= */
 const fmt=(x,n)=>Number(x).toFixed(n==null?1:n);
@@ -597,8 +601,8 @@ function renderLabels(){ if(typeof drawIcons==='function') queueMicrotask(drawIc
   $('#rhoCap').textContent=`空気の密度 ${fmt(env.rho,3)} kg/m³`;
   const o=(id,t)=>{ $('#'+id).textContent=t; };
   o('pWlo',D.wl&&pl.wlMM?'先から '+fmt(pl.wlMM,0)+' mm':'なし'); o('pWao',D.wa>0?'上へ '+D.wa+'°':D.wa<0?'下へ '+(-D.wa)+'°':'0°（平ら）'); $('#waRow').hidden=!D.wl;
-  o('pHo',fmt(D.h,1)+' mm'+(D.wk?'（まん中）':'')); if(pl&&pl.keel){ const a=pl.wk/DEG, kf=pl.keel; o('pWko',Math.abs(a)<.05?'平行':(a>0?'+':'−')+fmt(Math.abs(a),1)+'°'+(Math.abs(Math.abs(a)-Math.abs(D.wk))>.3?'（限界）':'')); $('#wkCap').textContent=`胴体の深さ 前 ${fmt(kf[0],0)} mm・後ろ ${fmt(kf[1],0)} mm（＋で後ろが深い）`; } o('pDiho',fmt(D.dih,1)+'°'); o('pElevo',fmt(D.elev,2)+'°'); o('pClipo',D.clips?D.clips+' 個（'+fmt(D.clips*.5,1)+'g）':'なし');
-  o('ringAo',fmt(D.ringA,1)+' mm'); o('ringNo',D.ringN+' 回'); o('tVo',fmt(D.v,1)+' m/s（時速'+Math.round(D.v*3.6)+'km）'); o('tAo',fmt(D.ang,1)+'°'); o('tSo','毎秒 '+D.spin+' 回転');
+  o('pHo',fmt(D.h,1)+' mm'+(D.wk?'（まん中）':'')); if(pl&&pl.keel){ const a=pl.wk/DEG, kf=pl.keel; o('pWko',Math.abs(a)<.05?'平行':(a>0?'+':'−')+fmt(Math.abs(a),1)+'°'+(Math.abs(Math.abs(a)-Math.abs(D.wk))>.3?'（限界）':'')); $('#wkCap').textContent=`胴体の深さ 前 ${fmt(kf[0],0)} mm・後ろ ${fmt(kf[1],0)} mm（＋で後ろが深い）`; } o('pDiho',fmt(D.dih,1)+'°'); o('pElevo',fmt(D.elev,2)+'°'); o('pElevDo',D.elevD?(D.elevD>0?'右':'左')+'を '+fmt(Math.abs(D.elevD),2)+'° 多く':'なし'); o('pRudo',D.rud?(D.rud>0?'右へ ':'左へ ')+fmt(Math.abs(D.rud),1)+'°':'まっすぐ'); o('pClipo',D.clips?D.clips+' 個（'+fmt(D.clips*.5,1)+'g）':'なし');
+  o('ringAo',fmt(D.ringA,1)+' mm'); o('ringNo',D.ringN+' 回'); o('tVo',fmt(D.v,1)+' m/s（時速'+Math.round(D.v*3.6)+'km）'); o('tAo',fmt(D.ang,1)+'°'); o('tSo',D.spin?(D.spin>0?'右回り ':'左回り ')+Math.abs(D.spin)+' 回/秒':'回さない');
   o('eTo',D.temp+'℃'); o('eAlto',D.alt+' m'); o('eHeado',D.head>0?'向かい風 '+fmt(D.head,1)+' m/s':D.head<0?'追い風 '+fmt(-D.head,1)+' m/s':'無風');
   o('eCrosso',D.cross>0?'左から '+fmt(D.cross,1)+' m/s':D.cross<0?'右から '+fmt(-D.cross,1)+' m/s':'なし'); o('eGusto',D.gust?'±'+fmt(D.gust,2)+' m/s':'なし');
   $$('#dist button').forEach(b=>b.setAttribute('aria-pressed',String(+b.dataset.d===D.dist))); { const d=K.DIST[D.dist];
@@ -642,7 +646,7 @@ function drawTop(){ const c=$('#topview'), g=c.getContext('2d'), W=c.width, H=c.
   g.fillStyle='#5b6b65'; g.font='500 18px sans-serif'; g.textAlign='left'; g.fillText('← 前',8,22);
   $('#topCap').textContent='上から見た形。赤い点が重心、緑の線が中立点。重心が中立点より前にあると、機首を戻す力がはたらきます。緑の帯は胴体、赤い帯は反り上げる縁。';
 }
-function syncInputs(){ const set=(id,v)=>{ const e=$('#'+id); e.value=v; if(e.type==='range') slPaint(e); }; set('loc',D.loc); set('mat',D.mat); set('size',D.size); set('pH',D.h); set('pWk',D.wk); set('pDih',D.dih); set('pElev',D.elev); set('pClip',D.clips); set('pWl',D.wl); set('pWa',D.wa); set('ringA',D.ringA); set('ringN',D.ringN);
+function syncInputs(){ const set=(id,v)=>{ const e=$('#'+id); e.value=v; if(e.type==='range') slPaint(e); }; set('loc',D.loc); set('mat',D.mat); set('size',D.size); set('pH',D.h); set('pWk',D.wk); set('pElevD',D.elevD); set('pRud',D.rud); set('pDih',D.dih); set('pElev',D.elev); set('pClip',D.clips); set('pWl',D.wl); set('pWa',D.wa); set('ringA',D.ringA); set('ringN',D.ringN);
   set('tV',D.v); set('tA',D.ang); set('tS',D.spin); set('eT',D.temp); set('eAlt',D.alt); set('eHead',D.head); set('eCross',D.cross); set('eGust',D.gust); }
 function setPaper(){ paper=K.makePaper(D.size,D.mat); $('#pH').max=Math.round(paper.pw*.4); D.h=clamp(D.h,6,+$('#pH').max);
   $('#presets').innerHTML=''; for(const p of K.presets(paper)){ const b=document.createElement('button'); b.className='b'; b.textContent=p.name; b.title=p.note; b.addEventListener('click',()=>runPreset(p)); $('#presets').appendChild(b); } 
@@ -756,8 +760,8 @@ $('#size').addEventListener('change',e=>{ D.size=e.target.value; setPaper(); D.f
 $$('#kind button').forEach(b=>b.addEventListener('click',()=>{ if(b.dataset.kind==='ball'){ if(D.kind!=='ball') becomeBall(); return; } if(D.kind==='ball'){ D.crush=0; D.folds=[]; refold(); } D.kind=b.dataset.kind; if(D.kind==='ring'){ D.v=13; D.ang=8; } else { D.v=6; D.ang=5; } syncInputs(); changed(); requestAnimationFrame(fit); }));
 $('#reset2').addEventListener('click',freshPaper);
 $$('#tight button').forEach(b=>b.addEventListener('click',()=>{ D.tight=+b.dataset.t; changed(); }));
-for(const [id,key] of [['pH','h'],['pWk','wk'],['pDih','dih'],['pElev','elev'],['pClip','clips'],['pWl','wl'],['pWa','wa'],['ringA','ringA'],['ringN','ringN'],['tV','v'],['tA','ang'],['tS','spin'],['eT','temp'],['eAlt','alt'],['eHead','head'],['eCross','cross'],['eGust','gust']])
-  $('#'+id).addEventListener('input',e=>{ D[key]=+e.target.value; if(tab==='fly'&&['h','wk','dih','elev','clips','wl','wa'].includes(key)&&flight&&!flight.done){ flight=null; throwBtn(false); } if(['v','ang','spin'].includes(key)){ renderLabels(); renderDiag(); if(tab==='fly'&&(!flight||flight.done)) model.quaternion.setFromAxisAngle(new V3(0,0,1),D.ang*DEG); } else { changed(); if(tab==='fly') windVis(); } });
+for(const [id,key] of [['pH','h'],['pWk','wk'],['pElevD','elevD'],['pRud','rud'],['pDih','dih'],['pElev','elev'],['pClip','clips'],['pWl','wl'],['pWa','wa'],['ringA','ringA'],['ringN','ringN'],['tV','v'],['tA','ang'],['tS','spin'],['eT','temp'],['eAlt','alt'],['eHead','head'],['eCross','cross'],['eGust','gust']])
+  $('#'+id).addEventListener('input',e=>{ D[key]=+e.target.value; if(tab==='fly'&&['h','wk','elevD','rud','dih','elev','clips','wl','wa'].includes(key)&&flight&&!flight.done){ flight=null; throwBtn(false); } if(['v','ang','spin'].includes(key)){ renderLabels(); renderDiag(); if(tab==='fly'&&(!flight||flight.done)) model.quaternion.setFromAxisAngle(new V3(0,0,1),D.ang*DEG); } else { changed(); if(tab==='fly') windVis(); } });
 $('#undo').addEventListener('click',()=>{ if(busy) return; sel=null; if(D.crush>0){ D.crush--; changed(); hint('1手もどしました。'); return; } if(!history.length) return; faces=history.pop(); D.folds.pop(); D.preset=''; changed(); hint('1手もどしました。'); });
 $('#reset').addEventListener('click',()=>{ if(busy) return; freshPaper(); });
 $$('#dist button').forEach(b=>b.addEventListener('click',()=>{ D.dist=+b.dataset.d; renderLabels(); }));
@@ -811,10 +815,25 @@ function icoRing(hi){ const x0=14, x1=106, y0=12, y1=52, w=D.ringA*.9;
   o+=svgP([[x0,y0],[x0+w,y0],[x0+w,y1],[x0,y1]],'rgba(229,72,45,.25)',IC.red,hi?2.5:1.5);
   if(hi==='n') for(let i=1;i<D.ringN;i++){ const x=x0+w*i/D.ringN; o+=svgL([[x,y0+3],[x,y1-3]],IC.red,1.5); }
   return o+svgT(x0,y1+10,'前',IC.ink); }
-function icoSpin(){ const cx=60, cy=32, r=20, n=Math.min(15,D.spin); let o=`<ellipse cx="${cx}" cy="${cy}" rx="${r}" ry="${r}" fill="${IC.grey}" stroke="${IC.ink}" stroke-width="2"/>`;
-  const a1=-.4+Math.min(5.6,.5+n*.38); o+=`<path d="M${cx+r+6} ${cy} A${r+6} ${r+6} 0 ${a1>Math.PI?1:0} 0 ${(cx+(r+6)*Math.cos(a1)).toFixed(1)} ${(cy-(r+6)*Math.sin(a1)).toFixed(1)}" fill="none" stroke="${IC.red}" stroke-width="3.5" stroke-linecap="round"/>`;
+function icoSpin(){ const cx=60, cy=32, r=19, n=Math.abs(D.spin), cw=D.spin>0; let o=`<ellipse cx="${cx}" cy="${cy}" rx="${r}" ry="${r}" fill="${IC.grey}" stroke="${IC.ink}" stroke-width="2"/>`;
+  if(!n) return o+svgT(cx,cy+4,'回さない',IC.red,'middle');
+  const R=r+7, sw=Math.min(5.2,.6+n*.35), a0=Math.PI/2, a1=cw?a0-sw:a0+sw, P=a=>[cx+R*Math.cos(a),cy-R*Math.sin(a)], e=P(a1), t=cw?-1:1;   // 後ろから見て、右回り＝時計回り
+  o+=`<path d="M${P(a0).map(v=>v.toFixed(1)).join(' ')} A${R} ${R} 0 ${sw>Math.PI?1:0} ${cw?1:0} ${e.map(v=>v.toFixed(1)).join(' ')}" fill="none" stroke="${IC.red}" stroke-width="3.5" stroke-linecap="round"/>`;
+  const tx=-Math.sin(a1)*t, ty=-Math.cos(a1)*t; o+=svgL([[e[0]-6*tx+4*ty,e[1]-6*ty-4*tx],e,[e[0]-6*tx-4*ty,e[1]-6*ty+4*tx]],IC.red,3);
   return o; }
-const ICONS={pH:()=>icoSide('keel'),pWk:()=>icoSide('wk'),pElev:()=>icoSide('elev'),pClip:()=>icoSide('clip'),pDih:()=>icoFront('dih'),pWl:()=>icoFront('wl'),pWa:()=>icoFront('wa'),
+/* 後ろから見た機体：左右の後ろの縁の反りを、上向きの矢印の長さで（右の翼は画面の右） */
+function icoBack(){ const cx=60, y0=36, L=48, d=D.dih*DEG; let o=svgL([[cx,y0],[cx,y0+16]],IC.ink,3.5);
+  for(const sd of [1,-1]){ const e=D.elev+sd*D.elevD/2, tip=[cx+sd*L*Math.cos(d),y0-L*Math.sin(d)]; o+=svgL([[cx,y0],tip],IC.ink,3.5);
+    const ax=cx+sd*L*.62*Math.cos(d), ay=y0-L*.62*Math.sin(d), hgt=Math.max(-14,Math.min(30,e*3));
+    if(Math.abs(hgt)>.8){ o+=svgL([[ax,ay],[ax,ay-hgt]],IC.red,4); o+=svgL([[ax-4,ay-hgt+(hgt>0?5:-5)],[ax,ay-hgt],[ax+4,ay-hgt+(hgt>0?5:-5)]],IC.red,3); } }
+  return o+svgT(6,60,'左',IC.ink)+svgT(114,60,'右',IC.ink,'end'); }
+/* 上から見た機体（機首が上）：胴体の後ろの曲げ */
+function icoTop(){ const cx=60, a=D.rud*DEG*2;                                          // 見やすいように2倍の角度で描く
+  let o=svgP([[cx,4],[cx+38,50],[cx-38,50]],IC.grey,IC.ink,1.6);
+  o+=svgL([[cx,4],[cx,46]],IC.ink,3.5); o+=svgL([[cx,46],[cx+14*Math.sin(a),46+14*Math.cos(a)]],IC.red,4.5);
+  if(D.rud) o+=svgL([[cx,46],[cx,61]],IC.ink,1.2,'stroke-dasharray="3 3"');
+  return o+svgT(6,60,'左',IC.ink)+svgT(114,60,'右',IC.ink,'end'); }
+const ICONS={pElevD:icoBack,pRud:icoTop,pH:()=>icoSide('keel'),pWk:()=>icoSide('wk'),pElev:()=>icoSide('elev'),pClip:()=>icoSide('clip'),pDih:()=>icoFront('dih'),pWl:()=>icoFront('wl'),pWa:()=>icoFront('wa'),
   tV:()=>icoThrow('v'),tA:()=>icoThrow('ang'),tS:icoSpin,ringA:()=>icoRing('a'),ringN:()=>icoRing('n')};
 function drawIcons(){ for(const id in ICONS){ const sv=document.querySelector('#ico-'+id); if(!sv||sv.closest('[hidden]')) continue; try{ sv.innerHTML=ICONS[id](); }catch(e){} } }
 for(const id in ICONS){ const e=$('#'+id); if(!e) continue; const row=e.closest('.sl'); row.classList.add('has-ico');

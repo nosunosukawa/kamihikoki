@@ -151,14 +151,16 @@ function finishInertia(I,el,rho){ let [Ixx,Iyy,Izz,Ixy]=I;
 /* ---------- 折った紙を立体にして、重さと空力の部品に分ける ---------- */
 /* prm: h=胴体の深さ(mm) dih=上反角(rad) elev=後ろの縁の反り上げ(rad) e=反り上げる幅(mm) clips=クリップの数 clipV=付ける位置(mm)
    wl=翼の先を立てる幅（翼を12本の帯に分けたうちの、先から何本ぶんか） wa=立てる角度(rad。正で上へ、負で下へ)
-   wk=翼の折り線の傾き(rad)。正で後ろほど胴体が深い。h は紙の長さのまん中での胴体の深さ */
+   wk=翼の折り線の傾き(rad)。正で後ろほど胴体が深い。h は紙の長さのまん中での胴体の深さ
+   elevD=左右の反り上げの差(rad)。正で右の翼を多く反らせる（右へ曲がる） rud=胴体の後ろを横へ曲げる角度(rad。正で後ろの縁を右へ＝右へ曲がる） */
 function mapper(prm,vH){
   const cG=Math.cos(prm.dih), sG=Math.sin(prm.dih), cd=Math.cos(prm.elev), sd=Math.sin(prm.elev), h=prm.h;
   const uT=prm.uT==null?1e9:prm.uT, cW=Math.cos(prm.dih+(prm.wa||0)), sW=Math.sin(prm.dih+(prm.wa||0));      // uT より外は、翼の先を立てた部分
+  const eD=prm.elevD||0, cR=Math.cos(prm.rud||0), sR=Math.sin(prm.rud||0);
   return function(u,v,side,bend){          // side: +1 右、-1 左。戻り値は m
     let x,y,z;
-    if(u<=h){ x=-v; y=-(h-u); z=0; }
-    else { const s=u-h; let xv=v, yl=0; if(bend!==false&&v>vH){ const d=v-vH; xv=vH+d*cd; yl=d*sd; } x=-xv; if(u>uT){ const s0=uT-h, d=u-uT; y=s0*sG+d*sW+yl; z=s0*cG+d*cW; } else { y=s*sG+yl; z=s*cG; } }
+    if(u<=h){ x=-v; y=-(h-u); z=0; if(bend!==false&&v>vH&&sR){ const d=v-vH; x=-(vH+d*cR); return [x*1e-3,y*1e-3,d*sR*1e-3]; } }   // 胴体の後ろ（方向舵）は、左右の紙が一緒に同じ側へ曲がる
+    else { const s=u-h; let xv=v, yl=0; if(bend!==false&&v>vH){ const d=v-vH, ce=eD?Math.cos(prm.elev+side*eD/2):cd, se=eD?Math.sin(prm.elev+side*eD/2):sd; xv=vH+d*ce; yl=d*se; } x=-xv; if(u>uT){ const s0=uT-h, d=u-uT; y=s0*sG+d*sW+yl; z=s0*cG+d*cW; } else { y=s*sG+yl; z=s*cG; } }
     return [x*1e-3,y*1e-3,z*side*1e-3];
   };
 }
@@ -207,9 +209,10 @@ function buildPlane(faces0,prm,paper,rho){
   const NK=12, dV=(bd.vmax-bd.vmin)/NK;
   for(let i=0;i<NK;i++){ const vc=bd.vmin+(i+.5)*dV; let lo=1e9, hi=-1e9; for(const f of faces){ const sp=spanAt(f.p,1,vc); if(sp){ lo=Math.min(lo,sp[0]); hi=Math.max(hi,sp[1]); } }
     const top=Math.min(h,hi), d=top-lo, um=(lo+top)/2; if(!(d>1)) continue; let nf=0; for(const f of faces){ const sp=spanAt(f.p,1,vc); if(sp&&sp[0]<um&&sp[1]>um) nf++; }   // 胴体は、紙の下の縁から折り線まで
-    el.push({k:1,le:[-vc*1e-3-cx,-(h-um)*1e-3-cy,0],c:(bd.vmax-bd.vmin)*1e-3,w:dV*1e-3,A:d*dV*1e-6,n:[0,0,1],tau:0,cmd:0,tc:0,hc:2*Math.max(1,nf)*th/(bd.vmax-bd.vmin)}); }
+    const rd=vc>vH?(prm.rud||0):0;                                      // 方向舵：板の向き（法線）を、上から見て回す
+    el.push({k:1,rud:rd,le:[-vc*1e-3-cx,-(h-um)*1e-3-cy,(vc>vH?(vc-vH)/2*Math.sin(rd):0)*1e-3],c:(bd.vmax-bd.vmin)*1e-3,w:dV*1e-3,A:d*dV*1e-6,n:[Math.sin(rd),0,Math.cos(rd)],tau:0,cmd:0,tc:0,hc:2*Math.max(1,nf)*th/(bd.vmax-bd.vmin)}); }
   const fi=finishInertia(mp.I,el,rho==null?1.2:rho), len=(bd.vmax-bd.vmin)*1e-3;
-  return {kind:'plane',rf:faces,rot,wk:Math.atan(k),keel:[h-k*hl,h+k*hl],keelAt,flex,wlMM:nw*dU,wa,m:mp.m,cg:[cx,cy],I:fi.I,Iinv:fi.Iinv,el,S,b,AR,Kp,Kv,mac:cA/S,h,vH,bd,elev:prm.elev,prm,P,len,cgPct:(-cx-bd.vmin*1e-3)/len*100};
+  return {kind:'plane',rf:faces,rot,wk:Math.atan(k),keel:[h-k*hl,h+k*hl],keelAt,flex,wlMM:nw*dU,wa,m:mp.m,cg:[cx,cy],I:fi.I,Iinv:fi.Iinv,el,S,b,AR,Kp,Kv,mac:cA/S,h,vH,bd,elev:prm.elev,elevD:prm.elevD||0,rud:prm.rud||0,prm,P,len,cgPct:(-cx-bd.vmin*1e-3)/len*100};
 }
 /* ---------- 円筒（リング翼）：長い辺を a 幅で n 回折り返して前の縁を重くし、輪にする ---------- */
 function buildRing(paper,o,rho){
@@ -265,7 +268,7 @@ function aero(pl,vb,w,out,env,fx,kp){
     const V=Math.sqrt(V2), al=Math.atan2(Un,Uc), q=.5*rho*V2*e.A; let CN, fcp, Mf=0;
     const cf=2.656/Math.sqrt(Math.max(1500,rho*V*c/mu));         // 板の両面の摩擦（層流・ブラジウスの式 1.328/√Re を2面ぶん）
     if(e.k===0){
-      const de=wp?de0+(e.sd>0?wp[1]:wp[0]):de0;                    // 折りのゆがみ：左右で、後ろの縁の反りが少し違う
+      const de=de0+(pl.elevD?e.sd*pl.elevD/2:0)+(wp?(e.sd>0?wp[1]:wp[0]):0);   // 左右の反りの差（自分で付けたもの）と、折りのゆがみ（外乱）
       const aw=1-sstep(.24,.56,Math.abs(al)), ae=al-e.tau*de*aw, s=Math.sin(ae), co=Math.cos(ae);
       const cp=Kp*s*Math.abs(co), cv=(pl.Kv+(1-aw)*Math.max(0,Math.PI-pl.Kv))*s*Math.abs(s);   // 付着した流れの力と、前縁のうずの力（ポルハムス）。失速後は、細長い翼でも板としての抵抗が出る
       CN=CNMAX*Math.tanh((cp+cv)/CNMAX);                         // 板が出せる上限で、なだらかに頭打ち
@@ -378,7 +381,7 @@ function presets(paper){ const w=paper.pw, d=Math.round(w*.15);   // d＝へそ�
   ]; }
 function applyFolds(paper,list){ let f=newPaper(paper); for(const [A,B,u] of list){ const r=fold(f,A,B,u&1,u&2);   // u：1＝山折り、2＝上の紙だけ
     if(r.err) throw new Error('fold '+r.err); f=r.faces; } return f; }
-const toPrm=o=>({wk:(o.wk||0)*Math.PI/180,wl:o.wl||0,wa:(o.wa||0)*Math.PI/180,h:o.h,dih:o.dih*Math.PI/180,elev:o.elev*Math.PI/180,e:o.e||22,clips:o.clips||0,clipV:o.clipV||25});
+const toPrm=o=>({elevD:(o.elevD||0)*Math.PI/180,rud:(o.rud||0)*Math.PI/180,wk:(o.wk||0)*Math.PI/180,wl:o.wl||0,wa:(o.wa||0)*Math.PI/180,h:o.h,dih:o.dih*Math.PI/180,elev:o.elev*Math.PI/180,e:o.e||22,clips:o.clips||0,clipV:o.clipV||25});
 
 root.KH={flapSeed,overlaps,groundPhi,groundKp,G,FOLD_MM,DIST,disturb,rng,stack,centroid,newFlex,flexUpdate,MATERIALS,SIZES,makePaper,air,makeEnv,newPaper,fold,clipHalf,area,bounds,spanAt,inside,buildPlane,buildRing,buildBall,aero,analyze,launch,step,fly,qrot,qinv,presets,applyFolds,toPrm,mapper};
 })(typeof window!=='undefined'?window:globalThis);
