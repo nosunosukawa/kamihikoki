@@ -209,6 +209,8 @@ details.more[open] summary{margin-bottom:6px}
         <div class="sl"><label for="pH">胴体の深さ</label><output id="pHo"></output><input id="pH" type="range" min="6" max="40" step="1" value="16"></div>
         <div class="sl"><label for="pDih">翼の上向きの角度（上反角）</label><output id="pDiho"></output><input id="pDih" type="range" min="-5" max="30" step="1" value="8"></div>
         <div class="sl"><label for="pElev">後ろの縁の反り上げ</label><output id="pElevo"></output><input id="pElev" type="range" min="-5" max="25" step="0.5" value="2.5"></div>
+        <div class="sl"><label for="pWl">翼の先を立てる（垂直フラップ）</label><output id="pWlo"></output><input id="pWl" type="range" min="0" max="4" step="1" value="0"></div>
+        <div class="sl" id="waRow"><label for="pWa">立てる角度</label><output id="pWao"></output><input id="pWa" type="range" min="-90" max="90" step="5" value="90"></div>
         <div class="sl"><label for="pClip">先に付けるクリップ</label><output id="pClipo"></output><input id="pClip" type="range" min="0" max="3" step="1" value="0"></div>
       </div>
       <h2>診断<small>折った形から計算</small></h2>
@@ -259,6 +261,7 @@ details.more[open] summary{margin-bottom:6px}
     <p class="foot">計算のしくみ：折った紙の重なりから重心と慣性を出し、翼と胴体を細い帯に分けて、帯ごとの空気の力を足し合わせています（翼素法）。左下の流れの絵は、翼を真横から見て、まわりの空気の動きを解いたものです（格子ボルツマン法）。白い線が翼、オレンジと青は、翼の上と下で空気が渦を巻いている所（回る向きが逆）。傾きが大きくなると、上の帯が翼からはがれて乱れます（失速）。絵は見るためのもので、飛距離の計算には使っていません。<br>
 翼のしなり：翼を、付け根で固定した片持ちばりとして曲げます。1枚の曲げこわさは D＝E·t³/12（E はヤング率、t は厚さ）。重ねて折った所は、枚数ぶんだけ曲げにくくなります。E はコピー用紙 2.7GPa（規格表の曲げこわさから逆算）、新聞紙 1.3GPa、画用紙 2.0GPa の目安です。<br>
 空気抵抗：両面の摩擦（層流・ブラジウスの式）に、前縁の厚み（重なりの枚数×紙の厚さ）にかかる動圧を足しています。紙の厚さは、折れる回数の限界（重なりが約3mmまで）にも使います。谷折りと山折りは、紙の重なる順番（表と裏）が変わるだけで、この計算では飛び方は同じです。<br>
+翼の先を立てる（垂直フラップ）：立てた部分は横すべりを止めて向きを安定させ、翼の先から空気が回りこむのを減らします（縦横比が 1＋1.9×高さ÷翼の幅 倍。ヘルナーの式）。そのかわり、浮く力を出す翼の面積は減ります。<br>
 外乱：投げるたびに、角度・傾き・向き・速さのぶれ、空気のゆらぎ、左右の翼の反りの差を、乱数で1回ぶん決めます。「なし」にすると毎回同じ結果になります。<br>
 入っていないもの：付け根の折り目のゆるみ、紙のねじれと折りぐせ、重なった紙のすき間に入る空気。<br>
 世界記録：飛距離 88.31m（2022年）、滞空 29.2秒（2010年）。ギネス世界記録より。<br>月の重力は 1.62m/s²、火星は重力 3.71m/s²・大気の密度 約0.020kg/m³ として計算（NASA の資料の値）。</p>
@@ -267,7 +270,7 @@ details.more[open] summary{margin-bottom:6px}
 <div class="toast" id="toast" role="status"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" integrity="sha512-dLxUelApnYxpLt6K2iomGngnHO83iUvZytA3YjDUCjT0HDOHKXnVYdf3hU4JjM8uEhxf9nD1/ey98U3t2vZ0qQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-<script src="core.js?v=5"></script>
+<script src="core.js?v=6"></script>
 <script>
 (()=>{
 'use strict';
@@ -291,13 +294,13 @@ if(!window.THREE||!K){ $('#foldHint').textContent='部品を読み込めませ�
 const V3=THREE.Vector3;
 
 /* ================= 状態 ================= */
-const CRUSH=100, D={loc:'yard',mat:'copy',size:'a4',kind:'plane',crush:0,folds:[],preset:'',h:16,dih:8,elev:2.5,clips:0,ringA:20,ringN:5,tight:0,dist:1,
+const CRUSH=100, D={loc:'yard',mat:'copy',size:'a4',kind:'plane',crush:0,folds:[],preset:'',h:16,dih:8,elev:2.5,clips:0,wl:0,wa:90,ringA:20,ringN:5,tight:0,dist:1,
   v:6,ang:5,spin:10,temp:20,alt:0,head:0,cross:0,gust:0};
 let paper, faces, history=[], env, pl, an, tab='make';
 function refold(){ sel=null; faces=K.newPaper(paper); history=[]; const ok=[]; for(const f of D.folds){ const r=K.fold(faces,f[0],f[1],f[2]); if(r.err) break; history.push(faces); faces=r.faces; ok.push(f); } D.folds=ok; }
 function buildAll(){
   const L=LOC(), sp=L.g!=null; env=K.makeEnv({tempC:D.temp,alt:D.alt,head:sp?0:D.head,cross:sp?0:D.cross,gust:sp?0:D.gust,g:L.g,rho:L.rho,mu:L.mu}); env.noGround=!!L.noGround;
-  if(D.kind==='plane') pl=K.buildPlane(faces,K.toPrm({h:D.h,dih:D.dih,elev:D.elev,clips:D.clips,e:Math.max(12,paper.L*.075),clipV:paper.L*.08}),paper,env.rho);
+  if(D.kind==='plane') pl=K.buildPlane(faces,K.toPrm({wl:D.wl,wa:D.wa,h:D.h,dih:D.dih,elev:D.elev,clips:D.clips,e:Math.max(12,paper.L*.075),clipV:paper.L*.08}),paper,env.rho);
   else if(D.kind==='ring') pl=K.buildRing(paper,{a:D.ringA,n:D.ringN},env.rho)||K.buildRing(paper,{a:10,n:1},env.rho);
   else pl=K.buildBall(paper,{tight:D.tight});
   an=K.analyze(pl,env); glideFx=null;
@@ -308,7 +311,7 @@ function encode(){ const o=Object.assign({},D,{folds:D.folds.map(f=>[f[0][0],f[0
 function decode(h){ try{ const o=JSON.parse(decodeURIComponent(escape(atob(h.replace(/-/g,'+').replace(/_/g,'/')))));
     const num=(k,a,b)=>{ const v=Number(o[k]); if(Number.isFinite(v)) D[k]=clamp(v,a,b); };
     if(K.MATERIALS.some(m=>m.id===o.mat)) D.mat=o.mat; if(K.SIZES.some(s=>s.id===o.size)) D.size=o.size; if(['plane','ring','ball'].includes(o.kind)) D.kind=o.kind; if(LOCS.some(l=>l.id===o.loc)) D.loc=o.loc;
-    num('crush',0,CRUSH); num('h',6,40); num('dih',-5,30); num('elev',-5,25); num('clips',0,3); num('ringA',10,40); num('ringN',1,6); num('tight',0,1); num('v',2,30); num('ang',-10,60); num('spin',0,15);
+    num('crush',0,CRUSH); num('h',6,40); num('dih',-5,30); num('elev',-5,25); num('clips',0,3); num('wl',0,4); D.wl=Math.round(D.wl); num('wa',-90,90); num('ringA',10,40); num('ringN',1,6); num('tight',0,1); num('v',2,30); num('ang',-10,60); num('spin',0,15);
     num('dist',0,2); D.dist=Math.round(D.dist); num('temp',-10,40); num('alt',0,3000); num('head',-5,5); num('cross',-3,3); num('gust',0,2);
     if(Array.isArray(o.folds)) D.folds=o.folds.slice(0,14).filter(f=>Array.isArray(f)&&(f.length===4||f.length===5)&&f.every(x=>Number.isFinite(Number(x)))).map(f=>[[clamp(+f[0],-400,400),clamp(+f[1],-100,600)],[clamp(+f[2],-400,400),clamp(+f[3],-100,600)],+f[4]===1?1:0]);
     return true; }catch(e){ return false; } }
@@ -548,6 +551,7 @@ function renderLabels(){
   $('#undo').disabled=!(history.length||D.crush>0); $('#reset').disabled=!(D.folds.length||D.crush>0);
   $('#rhoCap').textContent=`空気の密度 ${fmt(env.rho,3)} kg/m³`;
   const o=(id,t)=>{ $('#'+id).textContent=t; };
+  o('pWlo',D.wl&&pl.wlMM?'先から '+fmt(pl.wlMM,0)+' mm':'なし'); o('pWao',D.wa>0?'上へ '+D.wa+'°':D.wa<0?'下へ '+(-D.wa)+'°':'0°（平ら）'); $('#waRow').hidden=!D.wl;
   o('pHo',D.h+' mm'); o('pDiho',D.dih+'°'); o('pElevo',fmt(D.elev,1)+'°'); o('pClipo',D.clips?D.clips+' 個（'+fmt(D.clips*.5,1)+'g）':'なし');
   o('ringAo',D.ringA+' mm'); o('ringNo',D.ringN+' 回'); o('tVo',fmt(D.v,1)+' m/s（時速'+Math.round(D.v*3.6)+'km）'); o('tAo',D.ang+'°'); o('tSo','毎秒 '+D.spin+' 回転');
   o('eTo',D.temp+'℃'); o('eAlto',D.alt+' m'); o('eHeado',D.head>0?'向かい風 '+fmt(D.head,1)+' m/s':D.head<0?'追い風 '+fmt(-D.head,1)+' m/s':'無風');
@@ -566,7 +570,7 @@ function renderDiag(){
   if(a.state==='vacuum'){ msg=LOC().name+'には空気がないので、翼は何もしません。どんな形でも、投げた速さと角度だけで決まる放物線を描きます。'; }
   else if(D.kind==='ball'){ add('直径',fmt(pl.d*100,1)+' cm'); add('終端速度',fmt(a.vterm,1)+' m/s'); msg='翼がないので、空気抵抗を受けながら放物線で飛びます。思いきり速く投げられるのが強みです。'; }
   else { add('翼の面積',fmt(pl.S*1e4,0)+' cm²'); add(D.kind==='ring'?'直径':'翼の幅',fmt(pl.b*100,1)+' cm'); add('縦横比',fmt(pl.AR,2)); add('翼面荷重',fmt(a.load*10,1)+' g/dm²');
-    add('重心（前から）',fmt(pl.cgPct,0)+' %'); add('安定の余裕',(a.sm>=0?'+':'')+fmt(a.sm,1)+' %');
+    if(D.kind==='plane'&&pl.wlMM) add('垂直フラップ',fmt(pl.wlMM,0)+' mm・'+(D.wa>=0?'上':'下')+'へ '+Math.abs(D.wa)+'°'); add('重心（前から）',fmt(pl.cgPct,0)+' %'); add('安定の余裕',(a.sm>=0?'+':'')+fmt(a.sm,1)+' %');
     if(D.kind==='ring'){ add('弦の長さ',fmt(pl.c*100,1)+' cm'); msg=a.sm>-8?'回転をかけて投げると、こまと同じ理由で向きが保たれます。迎角がついたぶんだけ揚力が出ます。':'前の縁がまだ軽く、ふらつきやすい形です。折り返す回数を増やすと落ち着きます。'; bad=a.sm<=-8; }
     else if(a.zerog){ add('釣り合う迎角',fmt(a.trim,1)+'°'); msg='無重力では落ちないので、揚力がそのまま機体を曲げます。反り上げがあると宙返りを続け、反り上げ 0°ならまっすぐ進みます。'; }
     else if(a.trim!=null&&a.state!=='dive'){ add('釣り合う迎角',fmt(a.trim,1)+'°'); add('滑空比',fmt(a.LD,2)); add('滑る速さ',fmt(a.V,1)+' m/s'); add('沈む速さ',fmt(a.sink,2)+' m/s'); add('レイノルズ数',fmt(env.rho*a.V*pl.mac/env.mu/1000,1)+' 千'); if(a.flexDeg!=null) add('翼のしなり（滑空中）','先で '+fmt(a.flexDeg,0)+'°');
@@ -593,7 +597,7 @@ function drawTop(){ const c=$('#topview'), g=c.getContext('2d'), W=c.width, H=c.
   g.fillStyle='#5b6b65'; g.font='500 18px sans-serif'; g.textAlign='left'; g.fillText('← 前',8,22);
   $('#topCap').textContent='上から見た形。赤い点が重心、緑の線が中立点。重心が中立点より前にあると、機首を戻す力がはたらきます。緑の帯は胴体、赤い帯は反り上げる縁。';
 }
-function syncInputs(){ const set=(id,v)=>{ $('#'+id).value=v; }; set('loc',D.loc); set('mat',D.mat); set('size',D.size); set('pH',D.h); set('pDih',D.dih); set('pElev',D.elev); set('pClip',D.clips); set('ringA',D.ringA); set('ringN',D.ringN);
+function syncInputs(){ const set=(id,v)=>{ $('#'+id).value=v; }; set('loc',D.loc); set('mat',D.mat); set('size',D.size); set('pH',D.h); set('pDih',D.dih); set('pElev',D.elev); set('pClip',D.clips); set('pWl',D.wl); set('pWa',D.wa); set('ringA',D.ringA); set('ringN',D.ringN);
   set('tV',D.v); set('tA',D.ang); set('tS',D.spin); set('eT',D.temp); set('eAlt',D.alt); set('eHead',D.head); set('eCross',D.cross); set('eGust',D.gust); }
 function setPaper(){ paper=K.makePaper(D.size,D.mat); $('#pH').max=Math.round(paper.pw*.4); D.h=clamp(D.h,6,+$('#pH').max);
   $('#presets').innerHTML=''; for(const p of K.presets(paper)){ const b=document.createElement('button'); b.className='b'; b.textContent=p.name; b.title=p.note; b.addEventListener('click',()=>runPreset(p)); $('#presets').appendChild(b); } 
@@ -704,7 +708,7 @@ $('#size').addEventListener('change',e=>{ D.size=e.target.value; setPaper(); D.f
 $$('#kind button').forEach(b=>b.addEventListener('click',()=>{ if(D.kind==='ball'){ D.crush=0; D.folds=[]; refold(); } D.kind=b.dataset.kind; if(D.kind==='ring'){ D.v=13; D.ang=8; } else { D.v=6; D.ang=5; } syncInputs(); changed(); requestAnimationFrame(fit); }));
 $('#reset2').addEventListener('click',freshPaper);
 $$('#tight button').forEach(b=>b.addEventListener('click',()=>{ D.tight=+b.dataset.t; changed(); }));
-for(const [id,key] of [['pH','h'],['pDih','dih'],['pElev','elev'],['pClip','clips'],['ringA','ringA'],['ringN','ringN'],['tV','v'],['tA','ang'],['tS','spin'],['eT','temp'],['eAlt','alt'],['eHead','head'],['eCross','cross'],['eGust','gust']])
+for(const [id,key] of [['pH','h'],['pDih','dih'],['pElev','elev'],['pClip','clips'],['pWl','wl'],['pWa','wa'],['ringA','ringA'],['ringN','ringN'],['tV','v'],['tA','ang'],['tS','spin'],['eT','temp'],['eAlt','alt'],['eHead','head'],['eCross','cross'],['eGust','gust']])
   $('#'+id).addEventListener('input',e=>{ D[key]=+e.target.value; if(['v','ang','spin'].includes(key)){ renderLabels(); renderDiag(); if(tab==='fly'&&(!flight||flight.done)) model.quaternion.setFromAxisAngle(new V3(0,0,1),D.ang*DEG); } else { changed(); if(tab==='fly') windVis(); } });
 $('#undo').addEventListener('click',()=>{ if(busy) return; sel=null; if(D.crush>0){ D.crush--; changed(); hint('1手もどしました。'); return; } if(!history.length) return; faces=history.pop(); D.folds.pop(); D.preset=''; changed(); hint('1手もどしました。'); });
 $('#reset').addEventListener('click',()=>{ if(busy) return; freshPaper(); });

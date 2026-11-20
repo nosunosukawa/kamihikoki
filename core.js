@@ -101,19 +101,22 @@ function finishInertia(I,el,rho){ let [Ixx,Iyy,Izz,Ixy]=I;
   const det=Ixx*Iyy-Ixy*Ixy; return {I:[Ixx,Iyy,Izz,Ixy],Iinv:[Iyy/det,-Ixy/det,Ixx/det,1/Izz]}; }
 
 /* ---------- 折った紙を立体にして、重さと空力の部品に分ける ---------- */
-/* prm: h=胴体の深さ(mm) dih=上反角(rad) elev=後ろの縁の反り上げ(rad) e=反り上げる幅(mm) clips=クリップの数 clipV=付ける位置(mm) */
+/* prm: h=胴体の深さ(mm) dih=上反角(rad) elev=後ろの縁の反り上げ(rad) e=反り上げる幅(mm) clips=クリップの数 clipV=付ける位置(mm)
+   wl=翼の先を立てる幅（翼を12本の帯に分けたうちの、先から何本ぶんか） wa=立てる角度(rad。正で上へ、負で下へ) */
 function mapper(prm,vH){
   const cG=Math.cos(prm.dih), sG=Math.sin(prm.dih), cd=Math.cos(prm.elev), sd=Math.sin(prm.elev), h=prm.h;
+  const uT=prm.uT==null?1e9:prm.uT, cW=Math.cos(prm.dih+(prm.wa||0)), sW=Math.sin(prm.dih+(prm.wa||0));      // uT より外は、翼の先を立てた部分
   return function(u,v,side,bend){          // side: +1 右、-1 左。戻り値は m
     let x,y,z;
     if(u<=h){ x=-v; y=-(h-u); z=0; }
-    else { const s=u-h; let xv=v, yl=0; if(bend!==false&&v>vH){ const d=v-vH; xv=vH+d*cd; yl=d*sd; } x=-xv; y=s*sG+yl; z=s*cG; }
+    else { const s=u-h; let xv=v, yl=0; if(bend!==false&&v>vH){ const d=v-vH; xv=vH+d*cd; yl=d*sd; } x=-xv; if(u>uT){ const s0=uT-h, d=u-uT; y=s0*sG+d*sW+yl; z=s0*cG+d*cW; } else { y=s*sG+yl; z=s*cG; } }
     return [x*1e-3,y*1e-3,z*side*1e-3];
   };
 }
 function buildPlane(faces,prm,paper,rho){
   const bd=bounds(faces), h=clamp(prm.h,3,Math.max(3,bd.umax-8)), vH=bd.vmax-prm.e;
-  const P=mapper(Object.assign({},prm,{h}),vH);
+  const NW=12, dU=(bd.umax-h)/NW, nw=clamp(Math.round(prm.wl||0),0,5), wa=nw?(prm.wa||0):0, uT=nw?bd.umax-nw*dU:null;   // 翼の先を立てる幅は、帯の本数で決める
+  const P=mapper(Object.assign({},prm,{h,uT,wa}),vH);
   const pts=[], g=Math.max(4,Math.round(paper.pw/18)); let msum=0;          // 重さの点。升目ごとに、紙がかかっている部分の面積と図心を正確に取る
   for(const f of faces){ let x0=1e9,x1=-1e9,y0=1e9,y1=-1e9; for(const q of f.p){ x0=Math.min(x0,q[0]); x1=Math.max(x1,q[0]); y0=Math.min(y0,q[1]); y1=Math.max(y1,q[1]); }
     for(let v0=Math.floor(y0/g)*g;v0<y1;v0+=g){ const band=clipHalf(clipHalf(f.p,0,v0,0,1,1),0,v0+g,0,1,-1); if(band.length<3) continue;
@@ -123,7 +126,7 @@ function buildPlane(faces,prm,paper,rho){
   for(let i=0;i<(prm.clips||0);i++) pts.push([-(bd.vmin+(prm.clipV||25)+i*6)*1e-3,-h*1e-3,0,0.0005]);   // 小さいクリップ 約0.5g。折ったあとの機首から測った位置に付ける
   const mp=massProps(pts), cx=mp.cx, cy=mp.cy;
   // 翼を、前後に細長い帯に分ける
-  const el=[], NW=12, dU=(bd.umax-h)/NW; let S=0, cA=0;
+  const el=[]; let S=0, cA=0; const cWa=Math.abs(Math.cos(wa));
   const cG=Math.cos(prm.dih), sG=Math.sin(prm.dih);
   const FN=NW, dUm=dU*1e-3, EI=new Float64Array(FN).fill(Infinity), ms=new Float64Array(FN), ma=new Float64Array(FN), th=paper.th||.09, Dp=paper.D||1.6e-4;
   for(let i=0;i<NW;i++){ const uc=h+(i+.5)*dU; let vLE=1e9,vTE=-1e9, mat=0; const sps=[];
@@ -132,24 +135,26 @@ function buildPlane(faces,prm,paper,rho){
     let nLE=0; for(const sp of sps) if(sp[0]<vLE+1.5) nLE++;          // 前縁に重なっている枚数
     const E=vTE>vH?clamp((vTE-Math.max(vLE,vH))/c,0,1):0, th2=Math.acos(clamp(2*E-1,-1,1));
     const tau=E>0?1-(th2-Math.sin(th2))/Math.PI:0, cmd=E>0?.5*Math.sin(th2)*(1-Math.cos(th2)):0;   // 薄翼理論のフラップの効き
-    const A=c*dU*1e-6; S+=2*A; cA+=2*A*c*1e-3;
+    const wlt=nw>0&&i>=NW-nw, an=prm.dih+(wlt?wa:0), A=c*dU*1e-6, Ap=A*(wlt?cWa:1); S+=2*Ap; cA+=2*Ap*c*1e-3;      // 立てた部分は、上から見た面積ぶんだけ翼として数える
     EI[i]=Dp*mat*1e-3;                                                // 重ねただけの紙は、枚数ぶんだけ曲げにくくなる（貼り合わせではないので足し算）
     ms[i]=(paper.sigma||67e-9)*mat*dU; ma[i]=(rho==null?1.2:rho)*Math.PI*c*c*1e-6/4*dUm;
-    for(const s of [1,-1]){ const le=P(uc,vLE,s,false); el.push({k:0,le:[le[0]-cx,le[1]-cy,le[2]],c:c*1e-3,w:dUm,A,n:[0,cG,-sG*s],tau,cmd,fi:i,sd:s,tc:mat/c*th/c,hc:nLE*th/c}); } }
+    for(const s of [1,-1]){ const le=P(uc,vLE,s,false); el.push({k:0,le:[le[0]-cx,le[1]-cy,le[2]],c:c*1e-3,w:dUm,A,n:[0,Math.cos(an),-Math.sin(an)*s],phi:wlt?wa:0,tau:wlt?tau*cWa:tau,cmd:wlt?cmd*cWa:cmd,fi:i,sd:s,tc:mat/c*th/c,hc:nLE*th/c}); } }
   // 翼のしなり：付け根（胴体との折り目）を固定した片持ちばり。帯 j に 1N かけたときの、帯 i の傾き Cth と たわみ Cy
   const Cth=new Float64Array(FN*FN), Cy=new Float64Array(FN*FN), sAt=i=>(i+.5)*dUm;
   for(let j=0;j<FN;j++){ let th0=0, y0=0;                              // 曲率 = 曲げモーメント ÷ 曲げこわさ を、付け根から積分する
     for(let i=0;i<FN;i++){ const g=i<j?(sAt(j)-sAt(i))/EI[i]:0, thi=th0+g*dUm/2; Cth[i*FN+j]=thi; Cy[i*FN+j]=y0+thi*dUm/2; th0+=g*dUm; y0+=thi*dUm; } }
   let yg=0; for(let j=0;j<FN;j++) yg+=Cy[(FN-1)*FN+j]*(ms[j]+ma[j])*G;  // 自分の重さ（空気の見かけの重さこみ）での先端のたわみ → いちばん低い振動の速さ
-  const flex={n:FN,dih:prm.dih,Cth,Cy,m:ms,tau:clamp(1/(1.243*Math.sqrt(G/Math.max(yg,1e-7))),.004,.3),span:(bd.umax-h)*1e-3};
-  const b=2*(bd.umax-h)*cG*1e-3, AR=b*b/S, Kp=2*Math.PI*AR/(2+Math.sqrt(4+AR*AR)), Kv=Math.PI*clamp((2.6-AR)/1.4,0,1);
+  const phi=new Float64Array(FN); for(let i=NW-nw;i<NW;i++) phi[i]=wa;
+  const flex={n:FN,dih:prm.dih,phi,Cth,Cy,m:ms,tau:clamp(1/(1.243*Math.sqrt(G/Math.max(yg,1e-7))),.004,.3),span:(bd.umax-h)*1e-3};
+  // 翼の幅は、立てた部分を上から見た長さで数える。立てた板は、翼の先から空気が回りこむのを減らす（端板の効き：縦横比が 1+1.9·高さ/幅 倍になる。ヘルナー）
+  const b=2*((bd.umax-h-nw*dU)+nw*dU*cWa)*cG*1e-3, hW=nw*dU*Math.abs(Math.sin(wa))*1e-3, AR=b*b/S*(1+1.9*hW/b), Kp=2*Math.PI*AR/(2+Math.sqrt(4+AR*AR)), Kv=Math.PI*clamp((2.6-AR)/1.4,0,1);
   // 胴体（縦の板）を、前後に分ける
   const NK=12, dV=(bd.vmax-bd.vmin)/NK;
   for(let i=0;i<NK;i++){ const vc=bd.vmin+(i+.5)*dV; let um=0; for(const f of faces){ const sp=spanAt(f.p,1,vc); if(sp) um=Math.max(um,sp[1]); }
     const d=Math.min(h,um); if(!(d>1)) continue; let nf=0; for(const f of faces){ const sp=spanAt(f.p,1,vc); if(sp&&sp[0]<h/2&&sp[1]>h/2) nf++; }
     el.push({k:1,le:[-vc*1e-3-cx,(-h+d/2)*1e-3-cy,0],c:(bd.vmax-bd.vmin)*1e-3,w:dV*1e-3,A:d*dV*1e-6,n:[0,0,1],tau:0,cmd:0,tc:0,hc:2*Math.max(1,nf)*th/(bd.vmax-bd.vmin)}); }
   const fi=finishInertia(mp.I,el,rho==null?1.2:rho), len=(bd.vmax-bd.vmin)*1e-3;
-  return {kind:'plane',flex,m:mp.m,cg:[cx,cy],I:fi.I,Iinv:fi.Iinv,el,S,b,AR,Kp,Kv,mac:cA/S,h,vH,bd,elev:prm.elev,prm,P,len,cgPct:(-cx-bd.vmin*1e-3)/len*100};
+  return {kind:'plane',flex,wlMM:nw*dU,wa,m:mp.m,cg:[cx,cy],I:fi.I,Iinv:fi.Iinv,el,S,b,AR,Kp,Kv,mac:cA/S,h,vH,bd,elev:prm.elev,prm,P,len,cgPct:(-cx-bd.vmin*1e-3)/len*100};
 }
 /* ---------- 円筒（リング翼）：長い辺を a 幅で n 回折り返して前の縁を重くし、輪にする ---------- */
 function buildRing(paper,o,rho){
@@ -177,7 +182,7 @@ function aero(pl,vb,w,out,env,fx){
   let Fx=0,Fy=0,Fz=0,Mx=0,My=0,Mz=0; const de0=pl.elev, wp=env.warp, k3=pl.Kp/(2*Math.PI), fl=fx&&pl.flex;
   for(const e of pl.el){
     const c=e.c, lx=e.le[0]; let n0=e.n[0], n1=e.n[1], n2=e.n[2], ly=e.le[1], lz=e.le[2], j=-1;
-    if(fl&&e.fi!=null){ j=e.fi+(e.sd>0?0:fl.n); const a=fl.dih+fx.th[j]; n1=Math.cos(a); n2=-Math.sin(a)*e.sd; ly+=fx.y[j]*e.n[1]; lz+=fx.y[j]*e.n[2]; }   // しなったぶんだけ、翼の面が傾き、位置が上がる
+    if(fl&&e.fi!=null){ j=e.fi+(e.sd>0?0:fl.n); const a=fl.dih+fx.th[j]+(e.phi||0); n1=Math.cos(a); n2=-Math.sin(a)*e.sd; ly+=fx.y[j]*e.n[1]; lz+=fx.y[j]*e.n[2]; }   // しなったぶんだけ、翼の面が傾き、位置が上がる
     const qx=lx-c*(e.k?0:vb[0]>=0?.75:.25);                      // 迎角は、流れの向きに見て 3/4 弦の点で決める（薄翼理論）
     const vx=vb[0]+w[1]*lz-w[2]*ly, vy=vb[1]+w[2]*qx-w[0]*lz, vz=vb[2]+w[0]*ly-w[1]*qx;
     const Uc=vx, Un=-(vx*n0+vy*n1+vz*n2), V2=Uc*Uc+Un*Un; if(V2<1e-9){ if(j>=0) fx.N[j]=0; continue; }
@@ -208,7 +213,7 @@ function aero(pl,vb,w,out,env,fx){
 function newFlex(pl){ const n=pl.flex.n*2; return {th:new Float64Array(n),y:new Float64Array(n),N:new Float64Array(n),L:new Float64Array(n)}; }
 function flexUpdate(pl,fx,F,h){ const fl=pl.flex, n=fl.n, k=h<0?-h:Math.min(1,h/fl.tau);      // h<0 のときは、つり合いを求める反復（緩和係数 -h）
   for(let sd=0;sd<2;sd++){ const o=sd*n, sg=sd?-1:1;
-    for(let i=0;i<n;i++){ const a=fl.dih+fx.th[o+i]; fx.L[o+i]=fx.N[o+i]-fl.m[i]*(F[1]*Math.cos(a)-F[2]*Math.sin(a)*sg)/pl.m; }
+    for(let i=0;i<n;i++){ const a=fl.dih+fx.th[o+i]+fl.phi[i]; fx.L[o+i]=fx.N[o+i]-fl.m[i]*(F[1]*Math.cos(a)-F[2]*Math.sin(a)*sg)/pl.m; }
     for(let i=0;i<n;i++){ let t=0,y=0; for(let j=0;j<n;j++){ const L=fx.L[o+j]; t+=fl.Cth[i*n+j]*L; y+=fl.Cy[i*n+j]*L; }
       const sm=(i+.5)*fl.span/n; t=clamp(t,-1.35,1.35); y=clamp(y,-.85*sm,.85*sm);          // はりの式は小さなたわみ用なので、折れ上がりきった所で止める
       fx.th[o+i]+=(t-fx.th[o+i])*k; fx.y[o+i]+=(y-fx.y[o+i])*k; } } }
@@ -295,7 +300,7 @@ function presets(paper){ const w=paper.pw;
     {id:'heso',name:'へそ型',note:'先を折り返して、機首を重くする。ゆっくり安定',folds:[[[w,0],[0,w]],[[0,0],[0,2*w]],[[w,w],[0,2*w]]],prm:{h:Math.round(w*.14),dih:10,elev:2.5,clips:0}},
   ]; }
 function applyFolds(paper,list){ let f=newPaper(paper); for(const [A,B,u] of list){ const r=fold(f,A,B,u); if(r.err) throw new Error('fold '+r.err); f=r.faces; } return f; }
-const toPrm=o=>({h:o.h,dih:o.dih*Math.PI/180,elev:o.elev*Math.PI/180,e:o.e||22,clips:o.clips||0,clipV:o.clipV||25});
+const toPrm=o=>({wl:o.wl||0,wa:(o.wa||0)*Math.PI/180,h:o.h,dih:o.dih*Math.PI/180,elev:o.elev*Math.PI/180,e:o.e||22,clips:o.clips||0,clipV:o.clipV||25});
 
 root.KH={G,FOLD_MM,DIST,disturb,rng,stack,centroid,newFlex,flexUpdate,MATERIALS,SIZES,makePaper,air,makeEnv,newPaper,fold,clipHalf,area,bounds,spanAt,inside,buildPlane,buildRing,buildBall,aero,analyze,launch,step,fly,qrot,qinv,presets,applyFolds,toPrm,mapper};
 })(typeof window!=='undefined'?window:globalThis);
