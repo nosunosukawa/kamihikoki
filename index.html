@@ -917,8 +917,8 @@ function renderGoal(){ const best=bestNow(), g=goalFor(best), none=D.loc==='iss'
       b.textContent=best?`自己ベスト ${fmt(best,1)}m・あと ${fmt(g.next-best,1)}m`:'まず1回投げてみます'; }
     gl.append(a,b); el.append(gl); el.classList.toggle('hit',hit);
     if(g.next!=null){ const bar=document.createElement('div'), i=document.createElement('i'); bar.className='gbar'; i.style.width=clamp((best-g.prev)/(g.next-g.prev)*100,0,100).toFixed(0)+'%'; bar.append(i); el.append(bar); } } }
-let lastDist=null;
-function finish(){ const f=flight, st=f.st, dist=Math.hypot(st.p[0],st.p[2]), L=LOC(); throwBtn(false); const diff=lastDist==null?'':`前回より ${dist>=lastDist?'+':'−'}${fmt(Math.abs(dist-lastDist),1)}m。`; lastDist=dist;
+let lastDist=null, lastKey='';
+function finish(){ const f=flight, st=f.st, dist=Math.hypot(st.p[0],st.p[2]), L=LOC(); throwBtn(false); const lk=D.kind+'@'+D.loc, diff=lastDist==null||lastKey!==lk?'':`前回より ${dist>=lastDist?'+':'−'}${fmt(Math.abs(dist-lastDist),1)}m。`; lastDist=dist; lastKey=lk;
   const R={dist,time:st.t,hmax:st.hmax,vavg:f.vsum/Math.max(1,f.vn),path:f.path,kind:D.kind,loc:L,name:D.kind==='plane'?(K.presets(paper).find(p=>p.id===D.preset)||{name:'自分で折った機体'}).name:KIND_NAME[D.kind]}; f.R=R;
   $('#rDist').textContent=fmt(dist,1); const pct=dist/REC_DIST*100;
   const brk=st.broke!=null?(()=>{ const b=st.brokeSide, sideTxt=b[0]&&b[1]?'両方の翼':b[0]?'右の翼':'左の翼', up=(b[0]||b[1])>0?'上':'下'; return `${fmt(st.broke,2)}秒で、${sideTxt}の付け根が風に負けて${up}へ折れました（付け根の紙ののび ${fmt(st.fx.emax*100,2)}%）。`; })():'';
