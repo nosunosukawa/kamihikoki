@@ -142,6 +142,9 @@ select{width:100%;margin-top:3px;padding:8px 8px;border:1.5px solid var(--ink);b
 .rpl{font-size:12.5px;font-weight:700}
 .rpt{width:100%;height:30px;accent-color:var(--red);margin:4px 0}
 .rpinfo{font-family:var(--mono);font-size:12.5px;font-weight:600;background:#eef3ef;border-radius:6px;padding:4px 8px;min-height:1.6em}
+.rpinfo:empty{display:none}
+.result details.more{margin-top:8px}
+.result details.more summary{padding:7px 0}
 .result .big{font-family:var(--mono);font-weight:600;font-size:46px;line-height:1;color:var(--red)}
 .result .big i{font-style:normal;font-size:18px;margin-left:4px;color:var(--ink)}
 .result p{font-size:13px;margin-top:4px}
@@ -287,16 +290,22 @@ details.more[open] summary{margin-bottom:6px}
         <p class="cap" id="chartCap"></p>
         <div class="rp" id="rp">
           <div class="rprow"><button class="b rpgo" id="rpPlay">▶ もう一度見る</button><div class="seg" id="rpSp"><button data-s="1">ふつう</button><button data-s="0.5">½</button><button data-s="0.2">⅕</button></div></div>
+          <p class="rpinfo" id="rpInfo"></p>
+          <details class="more" id="rpMore">
+            <summary>くわしく見直す（時刻・見る位置・矢印の意味）</summary>
           <input class="rpt" id="rpT" type="range" min="0" max="1000" step="1" value="1000" aria-label="見直す時刻">
           <div class="rprow"><span class="rpl">見る位置</span><div class="seg" id="camMode"><button data-c="back">後ろ</button><button data-c="side">横</button><button data-c="top">上</button></div></div>
-          <p class="rpinfo" id="rpInfo"></p>
           <p class="cap">矢印：緑＝揚力、橙＝抗力、灰＝重さ（重さと同じ力で 16cm）。翼の上の細い緑の線＝翼の帯ごとの揚力（左右の差や、しなりで減る所が見えます）。まわりの線＝機体から見た空気の流れ（風洞の煙と同じ見え方）。静かな空気は水色、翼に押しのけられたり突風で動いた空気ほど橙。翼の後ろへの吹きおろしと、翼の先のうずが見えます（揚力線理論で計算）。翼のしなりは形そのものに出ます。</p>
+          </details>
         </div>
+        <details class="more" id="shareBox">
+          <summary>記録を共有する（X・画像・URL）</summary>
         <div class="btns">
           <a class="b x" id="shareX" target="_blank" rel="noopener" href="https://x.com/intent/post">結果をXに投稿</a>
           <button class="b wide" id="shareImg">記録の画像を保存・共有</button>
           <button class="b wide" id="shareUrl">この機体のURLをコピー</button>
         </div>
+        </details>
       </div>
       <h2>投げ方</h2>
       <div class="sl"><label for="tV">投げる速さ</label><output id="tVo"></output><input id="tV" type="range" min="2" max="15" step="0.1" value="6"></div>
