@@ -81,6 +81,8 @@ select{width:100%;margin-top:3px;padding:8px 8px;border:1.5px solid var(--ink);b
 .sl{display:grid;grid-template-columns:1fr auto;gap:2px 8px;align-items:center;margin:10px 0 12px}
 .sl label{font-size:12.5px;font-weight:700}
 .sl output{font-family:var(--mono);font-size:13px;font-weight:600;background:#eef3ef;border:1px solid var(--line);border-radius:6px;padding:0 7px;min-width:3.4em;text-align:right}
+#flyTuneSlot #tnPlane>h2{display:none}
+#flyTune .hint{margin:4px 0 2px}
 .sl.has-ico{grid-template-columns:104px minmax(0,1fr) auto;column-gap:10px}
 .sl .ico{grid-column:1;grid-row:1/4;width:104px;height:60px;background:#fff;border:1.5px solid var(--ink);border-radius:10px;align-self:center}
 .sl.has-ico label{grid-column:2}
@@ -263,13 +265,18 @@ details.more[open] summary{margin-bottom:6px}
           <button class="b wide" id="shareUrl">この機体のURLをコピー</button>
         </div>
       </div>
-      <h2>投げる場所</h2>
-      <label class="f"><select id="loc"></select></label>
-      <p class="cap" id="locCap" style="margin-top:4px"></p>
       <h2>投げ方</h2>
       <div class="sl"><label for="tV">投げる速さ</label><output id="tVo"></output><input id="tV" type="range" min="2" max="15" step="0.1" value="6"></div>
       <div class="sl"><label for="tA">投げる角度</label><output id="tAo"></output><input id="tA" type="range" min="-10" max="60" step="0.5" value="5"></div>
       <div class="sl" id="spinRow" hidden><label for="tS">回転</label><output id="tSo"></output><input id="tS" type="range" min="0" max="15" step="1" value="10"></div>
+      <div id="flyTune">
+        <h2>機体の調整<small>結果を見て直し、そのまま投げ直せます</small></h2>
+        <p class="hint" id="verdictFly"></p>
+        <div id="flyTuneSlot"></div>
+      </div>
+      <h2>投げる場所</h2>
+      <label class="f"><select id="loc"></select></label>
+      <p class="cap" id="locCap" style="margin-top:4px"></p>
       <h2>外乱<small>投げのぶれ・空気のゆらぎ・折りのゆがみ</small></h2>
       <div class="seg" id="dist"><button data-d="0">なし</button><button data-d="1">ふつう</button><button data-d="2">強い</button></div>
       <p class="cap" id="distCap" style="margin-top:4px"></p>
@@ -583,6 +590,7 @@ async function runPreset(p){ if(busy) return; busy=true; D.folds=[]; D.crush=0; 
 const fmt=(x,n)=>Number(x).toFixed(n==null?1:n);
 function changed(){ buildAll(); buildMesh(); bendMesh(glideFx); drawFold(); renderDiag(); renderLabels(); lbDirty=true; }
 function renderLabels(){ if(typeof drawIcons==='function') queueMicrotask(drawIcons);
+  { const v=$('#verdict'), vf=$('#verdictFly'); vf.innerHTML=v.innerHTML; vf.className=v.className; vf.hidden=!v.textContent; $('#flyTune').hidden=D.kind!=='plane'; }
   $('#paperCap').textContent=`${paper.size.W}×${paper.size.L}mm・1m²あたり${paper.gsm}g・厚さ 約${paper.th}mm → 1枚 ${fmt(paper.mass*1000,2)}g。こし（曲げこわさ）はコピー用紙の ${fmt(paper.D/1.64e-4,paper.D/1.64e-4<1?2:1)}倍`;
   $('#foldN').textContent=D.folds.length?`折り ${D.folds.length+D.crush}回\n重なり ${K.stack(faces)}枚\n厚さ ${fmt(K.stack(faces)*paper.th,1)}mm`:'';
   $('#undo').disabled=!(history.length||D.crush>0); $('#reset').disabled=!(D.folds.length||D.crush>0);
@@ -643,7 +651,8 @@ function setPaper(){ paper=K.makePaper(D.size,D.mat); $('#pH').max=Math.round(pa
 async function bestPlane(){ if(busy) return; D.size='a3'; D.mat='draw'; D.kind='plane'; setPaper(); syncInputs(); const p=K.presets(paper)[0];
   await runPreset(Object.assign({},p,{prm:{h:26,dih:-2,elev:1.5,clips:2}})); D.v=15; D.ang=4; syncInputs(); changed();
   hint('最強型：A3の画用紙のやり型に、クリップ2個。秒速15m・上向き4°で投げます。'); }
-function setTab(t){ if(flight&&!flight.done) flight=null; throwBtn(false); tab=t; app.dataset.tab=t; $$('.tabs button').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.tab===t)));
+function setTab(t){ if(flight&&!flight.done) flight=null; throwBtn(false); tab=t;
+  { const tp=$('#tnPlane'), tune=$('.pane.tune'); if(t==='fly') $('#flyTuneSlot').appendChild(tp); else if(tp.parentNode!==tune) tune.insertBefore(tp,tune.firstChild); }   /* 仕上げのつまみを、飛ばす画面でも使う */ app.dataset.tab=t; $$('.tabs button').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.tab===t)));
   const sc=t==='fly'?field:hangar; if(model.parent!==sc){ sc.add(model); } if(t!=='fly'){ model.position.set(0,0,0); model.quaternion.set(0,0,0,1); model.scale.setScalar(1); orbit.auto=true; }
   else resetFlightView(); $('#panel').scrollTop=0; requestAnimationFrame(fit); }
 
@@ -670,10 +679,11 @@ function simulate(dt){ const f=flight, st=f.st; if(!f.done){ f.acc+=dt*speedMul;
   tmp.set(st.p[0]-(dirH.x*cx-dirH.z*sx)*far+dirH.z*.6, Math.max(.25,st.p[1]+.4), st.p[2]-(dirH.z*cx+dirH.x*sx)*far-dirH.x*.6);
   camPos.lerp(tmp,Math.min(1,dt*7)); camTgt.lerp(model.position,Math.min(1,dt*12));
   hudSet(Math.hypot(st.p[0],st.p[2]),st.p[1],st.speed,st.alpha/DEG,st.t); lbAlpha=st.alpha; }
-function finish(){ const f=flight, st=f.st, dist=Math.hypot(st.p[0],st.p[2]), L=LOC(); throwBtn(false);
+let lastDist=null;
+function finish(){ const f=flight, st=f.st, dist=Math.hypot(st.p[0],st.p[2]), L=LOC(); throwBtn(false); const diff=lastDist==null?'':`前回より ${dist>=lastDist?'+':'−'}${fmt(Math.abs(dist-lastDist),1)}m。`; lastDist=dist;
   const R={dist,time:st.t,hmax:st.hmax,vavg:f.vsum/Math.max(1,f.vn),path:f.path,kind:D.kind,loc:L,name:D.kind==='plane'?(K.presets(paper).find(p=>p.id===D.preset)||{name:'自分で折った機体'}).name:KIND_NAME[D.kind]}; f.R=R;
   $('#rDist').textContent=fmt(dist,1); const pct=dist/REC_DIST*100;
-  $('#rLine').textContent=`${L.name}から。滞空 ${fmt(st.t,2)}秒・最高 ${fmt(st.hmax,1)}m・平均 秒速${fmt(R.vavg,1)}m。`+(st.flexMax>.09?`翼のしなり 最大 ${fmt(st.flexMax*180/Math.PI,0)}°${st.flexMax>.6?'（折れ上がって揚力を失いました）':''}。`:'')+(f.dz?`今回のぶれ：角度 ${f.dz.dAng>=0?'+':''}${fmt(f.dz.dAng,1)}°・傾き ${f.dz.roll>=0?'+':''}${fmt(f.dz.roll/DEG,0)}°・向き ${f.dz.head>=0?'+':''}${fmt(f.dz.head/DEG,0)}°・速さ ${f.dz.dv>=0?'+':''}${fmt(f.dz.dv*100,0)}%。`:'')+(L.id==='yard'?`世界記録 ${REC_DIST}m の ${fmt(pct,pct<10?1:0)}%。`:'')+(f.wall?' 壁に当たりました。':L.id==='iss'?' 20秒で打ち切りました。':st.p[0]<-.5?' 後ろへ戻ってしまいました。':st.hmax>L.h+2.5&&dist<6?' 上がりすぎて失速しました。速さか反り上げを減らします。':'');
+  $('#rLine').textContent=diff+`${L.name}から。滞空 ${fmt(st.t,2)}秒・最高 ${fmt(st.hmax,1)}m・平均 秒速${fmt(R.vavg,1)}m。`+(st.flexMax>.09?`翼のしなり 最大 ${fmt(st.flexMax*180/Math.PI,0)}°${st.flexMax>.6?'（折れ上がって揚力を失いました）':''}。`:'')+(f.dz?`今回のぶれ：角度 ${f.dz.dAng>=0?'+':''}${fmt(f.dz.dAng,1)}°・傾き ${f.dz.roll>=0?'+':''}${fmt(f.dz.roll/DEG,0)}°・向き ${f.dz.head>=0?'+':''}${fmt(f.dz.head/DEG,0)}°・速さ ${f.dz.dv>=0?'+':''}${fmt(f.dz.dv*100,0)}%。`:'')+(L.id==='yard'?`世界記録 ${REC_DIST}m の ${fmt(pct,pct<10?1:0)}%。`:'')+(f.wall?' 壁に当たりました。':L.id==='iss'?' 20秒で打ち切りました。':st.p[0]<-.5?' 後ろへ戻ってしまいました。':st.hmax>L.h+2.5&&dist<6?' 上がりすぎて失速しました。速さか反り上げを減らします。':'');
   $('#result').classList.add('on'); $('#panel').scrollTop=0; drawChart(R); $('#shareX').href=xUrl(R);
   try{ const b=JSON.parse(localStorage.getItem('khlab_best')||'{}'), k=D.kind+'@'+D.loc; if(!(b[k]>=dist)){ b[k]=Math.round(dist*10)/10; localStorage.setItem('khlab_best',JSON.stringify(b)); } }catch(e){} renderLabels(); }
 function drawChart(R,g,x,y,W,H){ const own=!g; if(own){ const c=$('#chart'); g=c.getContext('2d'); x=0; y=0; W=c.width; H=c.height; g.clearRect(0,0,W,H); }
@@ -747,7 +757,7 @@ $$('#kind button').forEach(b=>b.addEventListener('click',()=>{ if(b.dataset.kind
 $('#reset2').addEventListener('click',freshPaper);
 $$('#tight button').forEach(b=>b.addEventListener('click',()=>{ D.tight=+b.dataset.t; changed(); }));
 for(const [id,key] of [['pH','h'],['pWk','wk'],['pDih','dih'],['pElev','elev'],['pClip','clips'],['pWl','wl'],['pWa','wa'],['ringA','ringA'],['ringN','ringN'],['tV','v'],['tA','ang'],['tS','spin'],['eT','temp'],['eAlt','alt'],['eHead','head'],['eCross','cross'],['eGust','gust']])
-  $('#'+id).addEventListener('input',e=>{ D[key]=+e.target.value; if(['v','ang','spin'].includes(key)){ renderLabels(); renderDiag(); if(tab==='fly'&&(!flight||flight.done)) model.quaternion.setFromAxisAngle(new V3(0,0,1),D.ang*DEG); } else { changed(); if(tab==='fly') windVis(); } });
+  $('#'+id).addEventListener('input',e=>{ D[key]=+e.target.value; if(tab==='fly'&&['h','wk','dih','elev','clips','wl','wa'].includes(key)&&flight&&!flight.done){ flight=null; throwBtn(false); } if(['v','ang','spin'].includes(key)){ renderLabels(); renderDiag(); if(tab==='fly'&&(!flight||flight.done)) model.quaternion.setFromAxisAngle(new V3(0,0,1),D.ang*DEG); } else { changed(); if(tab==='fly') windVis(); } });
 $('#undo').addEventListener('click',()=>{ if(busy) return; sel=null; if(D.crush>0){ D.crush--; changed(); hint('1手もどしました。'); return; } if(!history.length) return; faces=history.pop(); D.folds.pop(); D.preset=''; changed(); hint('1手もどしました。'); });
 $('#reset').addEventListener('click',()=>{ if(busy) return; freshPaper(); });
 $$('#dist button').forEach(b=>b.addEventListener('click',()=>{ D.dist=+b.dataset.d; renderLabels(); }));
