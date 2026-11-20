@@ -128,7 +128,8 @@ select{width:100%;margin-top:3px;padding:8px 8px;border:1.5px solid var(--ink);b
 .rank li{display:grid;grid-template-columns:2.2em minmax(0,1fr) auto;gap:2px 8px;align-items:center;padding:7px 4px;border-bottom:1px solid var(--line);counter-increment:r}
 .rank li::before{content:counter(r);font-family:var(--mono);font-weight:600;font-size:17px;text-align:center;grid-row:1/3}
 .rank li:nth-child(1)::before{color:#c8952a}.rank li:nth-child(2)::before{color:#8c98a4}.rank li:nth-child(3)::before{color:#b0703c}
-.rank li.new{background:#fff6dc}
+.rank li.new,.rank li.me{background:#fff6dc}
+.rank .rn{grid-column:2;font-size:13px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .rank .rd{font-family:var(--mono);font-weight:600;font-size:16px;color:var(--red)}
 .rank .rs{grid-column:2;font-size:11.5px;color:#5b6b65}
 .rank .rb{grid-column:3;grid-row:1/3;padding:6px 8px;font-size:12px}
@@ -321,8 +322,10 @@ details.more[open] summary{margin-bottom:6px}
       </details>
       <p class="cap" id="bestCap"></p>
       <details class="more" id="rankBox" open>
-        <summary>ランキング（この端末） <small id="rankFor" style="font-weight:500"></small></summary>
+        <summary>ランキング <small id="rankFor" style="font-weight:500"></small></summary>
+        <div class="seg" id="rankTab" hidden style="grid-template-columns:1fr 1fr;margin:6px 0"><button data-r="me" aria-pressed="true">この端末</button><button data-r="gc" aria-pressed="false">みんな（Game Center）</button></div>
         <ol class="rank" id="rankList"></ol>
+        <div id="gcBox" hidden><ol class="rank" id="gcList"></ol><p class="cap" id="gcCap"></p></div>
         <p class="cap">投げた場所と、作ったもの（飛行機・円筒・玉）ごとの上位10回。「この機体で」を押すと、その時の紙・折り方・仕上げ・投げ方に戻ります。記録はこの端末の中だけに残り、外へは送りません。</p>
       </details>
       <div class="stick"><button class="b go" id="throw">投げる</button></div>
@@ -646,7 +649,7 @@ function renderLabels(){ if(typeof drawIcons==='function') queueMicrotask(drawIc
   $('#mkPlane').hidden=D.kind!=='plane'; $('#mkRing').hidden=D.kind!=='ring'; $('#mkBall').hidden=D.kind!=='ball'; $('#tnPlane').hidden=D.kind!=='plane';
   app.dataset.kind=D.kind; $$('#kind button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.kind===D.kind))); $$('#tight button').forEach(b=>b.setAttribute('aria-pressed',String(+b.dataset.t===D.tight)));
   let best={}; try{ best=JSON.parse(localStorage.getItem('khlab_best')||'{}'); }catch(e){}
-  if(typeof renderRank==='function') renderRank();
+  if(typeof renderRank==='function') renderRank(); if(typeof rankTab!=='undefined'&&rankTab==='gc'&&GC){ const b=gcBoard(); if(b!==renderLabels._gb){ renderLabels._gb=b; setRankTab('gc'); } }
   const bk=best[D.kind+'@'+D.loc]; $('#bestCap').textContent=bk?`${LOC().name}での${KIND_NAME[D.kind]}の自己ベスト ${fmt(bk,1)}m`:'';
 }
 function renderDiag(){
@@ -776,6 +779,28 @@ function renderRank(){ const ol=$('#rankList'); if(!ol) return; const L=rankAll(
     li.querySelector('.rb').addEventListener('click',()=>loadRank(e)); ol.appendChild(li); }); }
 function loadRank(e){ if(busy) return; if(!decode(e.c)){ toast('この記録は読みこめませんでした'); return; } D.preset=e.p||'';
   setPaper(); refold(); syncInputs(); applyLoc(); changed(); rankNew=-1; resetFlightView(); renderRank(); $('#panel').scrollTop=0; toast(`${fmt(e.d,1)}m の機体に戻しました。投げてみてください`); }
+/* ================= みんなのランキング（Game Center。iPhone アプリの中だけ） =================
+   送るのは、校庭の飛行機・校庭の円筒・屋上の飛行機で、風（前後・横・突風）をすべて 0 にして投げた記録だけ（風で記録が伸びないように）。点は距離 m × 10 */
+const GC_BOARDS={'yard.plane':'校庭・飛行機','yard.ring':'校庭・円筒','roof.plane':'校舎の屋上・飛行機'};
+const GC=(window.webkit&&webkit.messageHandlers&&webkit.messageHandlers.gc)||null;
+let gcSigned=false, rankTab='me';
+const gcBoard=()=>GC_BOARDS[D.loc+'.'+D.kind]?D.loc+'.'+D.kind:null;
+function gcWhyNot(){ if(!gcBoard()) return `みんなのランキングは「${Object.values(GC_BOARDS).join('」「')}」だけです。`; if(D.head||D.cross||D.gust) return '風（前後・横・突風）を 0 にして投げた記録だけを、みんなのランキングに送ります。'; return ''; }
+function gcAsk(){ const b=gcBoard(); if(!GC||!b) return; $('#gcCap').textContent='読みこみ中…'; GC.postMessage({op:'top',board:b}); }
+function renderGc(p){ const ol=$('#gcList'); ol.innerHTML=''; const b=gcBoard();
+  if(!b){ $('#gcCap').textContent=gcWhyNot(); return; }
+  if(!gcSigned){ $('#gcCap').textContent='Game Center にサインインすると参加できます（iPhone の「設定」→「Game Center」）。'; return; }
+  if(!p||!p.ok){ $('#gcCap').textContent='読みこめませんでした。通信のある所で開き直してください。'; return; }
+  if(!p.rows.length){ const li=document.createElement('li'); li.className='empty'; li.textContent='まだ記録がありません。最初の1人になれます。'; ol.appendChild(li); }
+  for(const r of p.rows){ const li=document.createElement('li'); if(r.me) li.className='me'; li.style.counterReset='r '+(r.rank-1);
+    li.innerHTML='<span class="rn"></span><span class="rd"></span>'; li.querySelector('.rn').textContent=r.name+(r.me?'（あなた）':''); li.querySelector('.rd').textContent=fmt(r.score/10,1)+' m'; ol.appendChild(li); }
+  $('#gcCap').textContent=`${GC_BOARDS[b]}・参加 ${p.total}人。`+gcWhyNot(); }
+window.KH_GC={ on(kind,p){ if(kind==='state'){ gcSigned=!!p.signedIn; if(rankTab==='gc') gcAsk(); }
+  else if(kind==='submitted'){ if(p.ok){ toast('みんなのランキングに送りました'); if(rankTab==='gc') gcAsk(); } }
+  else if(kind==='top'){ if(p.board===gcBoard()) renderGc(p); } } };
+function setRankTab(t){ rankTab=t; $$('#rankTab button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.r===t))); $('#rankList').hidden=t!=='me'; $('#gcBox').hidden=t!=='gc'; if(t==='gc'){ if(gcBoard()) gcAsk(); else renderGc(null); } }
+if(GC){ $('#rankTab').hidden=false; $$('#rankTab button').forEach(b=>b.addEventListener('click',()=>setRankTab(b.dataset.r))); GC.postMessage({op:'state'}); }
+function gcSubmit(dist){ const b=gcBoard(); if(!GC||!b||D.head||D.cross||D.gust||!gcSigned) return; GC.postMessage({op:'submit',board:b,score:Math.round(dist*10)}); }
 let lastDist=null;
 function finish(){ const f=flight, st=f.st, dist=Math.hypot(st.p[0],st.p[2]), L=LOC(); throwBtn(false); const diff=lastDist==null?'':`前回より ${dist>=lastDist?'+':'−'}${fmt(Math.abs(dist-lastDist),1)}m。`; lastDist=dist;
   const R={dist,time:st.t,hmax:st.hmax,vavg:f.vsum/Math.max(1,f.vn),path:f.path,kind:D.kind,loc:L,name:D.kind==='plane'?(K.presets(paper).find(p=>p.id===D.preset)||{name:'自分で折った機体'}).name:KIND_NAME[D.kind]}; f.R=R;
@@ -784,7 +809,7 @@ function finish(){ const f=flight, st=f.st, dist=Math.hypot(st.p[0],st.p[2]), L=
   $('#rLine').textContent=diff+brk+`${L.name}から。滞空 ${fmt(st.t,2)}秒・最高 ${fmt(st.hmax,1)}m・平均 秒速${fmt(R.vavg,1)}m。`+(st.flexMax>.09?`翼のしなり 最大 ${fmt(st.flexMax*180/Math.PI,0)}°${st.flexMax>.6?'（折れ上がって揚力を失いました）':''}。`:'')+(f.dz?`今回のぶれ：角度 ${f.dz.dAng>=0?'+':''}${fmt(f.dz.dAng,1)}°・傾き ${f.dz.roll>=0?'+':''}${fmt(f.dz.roll/DEG,0)}°・向き ${f.dz.head>=0?'+':''}${fmt(f.dz.head/DEG,0)}°・速さ ${f.dz.dv>=0?'+':''}${fmt(f.dz.dv*100,0)}%。`:'')+(L.id==='yard'?`世界記録 ${REC_DIST}m の ${fmt(pct,pct<10?1:0)}%。`:'')+(f.wall?' 壁に当たりました。':L.id==='iss'?' 20秒で打ち切りました。':st.p[0]<-.5?' 後ろへ戻ってしまいました。':st.hmax>L.h+2.5&&dist<6?' 上がりすぎて失速しました。速さか反り上げを減らします。':'');
   replay=null; $('#rpPlay').textContent='▶ もう一度見る'; $('#rpT').value=1000; $('#rp').hidden=!(f.rec&&f.rec.length>1); $('#rpInfo').textContent='';
   $('#result').classList.add('on'); $('#panel').scrollTop=0; drawChart(R); $('#shareX').href=xUrl(R);
-  try{ const b=JSON.parse(localStorage.getItem('khlab_best')||'{}'), k=D.kind+'@'+D.loc; if(!(b[k]>=dist)){ b[k]=Math.round(dist*10)/10; localStorage.setItem('khlab_best',JSON.stringify(b)); } }catch(e){} rankNew=rankAdd(R); if(rankNew>=0) toast(rankNew===0?'この端末の1位！':`この端末で ${rankNew+1}位`); renderLabels(); }
+  try{ const b=JSON.parse(localStorage.getItem('khlab_best')||'{}'), k=D.kind+'@'+D.loc; if(!(b[k]>=dist)){ b[k]=Math.round(dist*10)/10; localStorage.setItem('khlab_best',JSON.stringify(b)); } }catch(e){} rankNew=rankAdd(R); gcSubmit(dist); if(rankNew>=0) toast(rankNew===0?'この端末の1位！':`この端末で ${rankNew+1}位`); renderLabels(); }
 function drawChart(R,g,x,y,W,H){ const own=!g; if(own){ const c=$('#chart'); g=c.getContext('2d'); x=0; y=0; W=c.width; H=c.height; g.clearRect(0,0,W,H); }
   const xs=R.path.map(p=>p[0]), xmin=Math.min(0,...xs), xmax=Math.max(5,...xs), ymax=Math.max(3,R.hmax*1.1), pad=26, sx=(W-2*pad)/(xmax-xmin), sy=(H-2*pad)/ymax, s=Math.min(sx,sy*3), X=v=>x+pad+(v-xmin)*s, Y=v=>y+H-pad-v*Math.min(sy,s);
   g.strokeStyle='#c9d6cf'; g.lineWidth=1; g.font='500 16px "IBM Plex Mono",monospace'; g.fillStyle='#5b6b65'; g.textAlign='center';
