@@ -52,30 +52,78 @@ function clipHalf(poly,px,py,nx,ny,sign){        // 直線の片側だけを残�
     if((da>0&&db<0)||(da<0&&db>0)){ const t=da/(da-db); out.push([a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t]); } }
   return out;
 }
-/* 左右対称なので、紙の右半分だけを持つ（u=中心線からの距離、v=先端からの距離） */
-function newPaper(paper){ return [{p:[[0,0],[paper.pw,0],[paper.pw,paper.L],[0,paper.L]],flip:false,z:0}]; }
+/* 左右対称なので、紙の右半分だけを持つ（u=中心線からの距離、v=先端からの距離）。
+   面は、いまの位置 p と、広げた紙の上での位置 o を、頂点ごとに対で持つ。o の3つ目は「中心線に留まっている点」の印
+   （もとから中心線の上にある紙と、中心線をこえて反対側の紙とつながっている所）。ここが中心線から離れると、左右が裂ける */
+function newPaper(paper){ const w=paper.pw, L=paper.L; return [{p:[[0,0],[w,0],[w,L],[0,L]],o:[[0,0,1],[w,0,0],[w,L,0],[0,L,1]],flip:false,z:0}]; }
 function rankZ(faces){ const zs=[...new Set(faces.map(f=>f.z))].sort((a,b)=>a-b); const m=new Map(zs.map((z,i)=>[z,i])); faces.forEach(f=>f.z=m.get(f.z)); return faces; }
-/* A をつまんで B へ持っていく。折り線は A と B の垂直二等分線で、A の側の紙が、重なりごと全部裏返る。under＝山折り（折った紙が裏側へ回る） */
-function fold(faces,A,B,under){
+/* 面を直線の片側だけ残す。p と o を対のまま切る。pin＝切り口の点に「留まっている」印を付ける（中心線で切るとき） */
+function clipFace(f,px,py,nx,ny,sign,pin){
+  const P=[], O=[], p=f.p, o=f.o, n=p.length;
+  for(let i=0;i<n;i++){ const a=p[i], b=p[(i+1)%n], oa=o[i], ob=o[(i+1)%n];
+    const da=sign*((a[0]-px)*nx+(a[1]-py)*ny), db=sign*((b[0]-px)*nx+(b[1]-py)*ny);
+    if(da>=0){ P.push(a); O.push(oa); }
+    if((da>0&&db<0)||(da<0&&db>0)){ const t=da/(da-db); P.push([a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t]); O.push([oa[0]+(ob[0]-oa[0])*t,oa[1]+(ob[1]-oa[1])*t,pin||(oa[2]&&ob[2])?1:0]); } }
+  return P.length>=3&&Math.abs(area(P))>.5?{p:P,o:O}:null;
+}
+/* 点から多角形のふちまでの距離 */
+function edgeDist(poly,x,y){ let m=1e9; for(let i=0;i<poly.length;i++){ const a=poly[i], b=poly[(i+1)%poly.length], ex=b[0]-a[0], ey=b[1]-a[1], l2=ex*ex+ey*ey, t=l2<1e-12?0:clamp(((x-a[0])*ex+(y-a[1])*ey)/l2,0,1); m=Math.min(m,Math.hypot(a[0]+ex*t-x,a[1]+ey*t-y)); } return m; }
+/* 2つの多角形が、面積をもって重なっているか */
+function overlaps(A,B){ const c=centroid(A); if(!c) return false; let r=B;
+  for(let i=0;i<A.length&&r.length>=3;i++){ const a=A[i], b=A[(i+1)%A.length], nx=-(b[1]-a[1]), ny=b[0]-a[0], L=Math.hypot(nx,ny); if(L<1e-9) continue;
+    r=clipHalf(r,a[0],a[1],nx/L,ny/L,((c[0]-a[0])*nx+(c[1]-a[1])*ny)>=0?1:-1); }
+  return r.length>=3&&Math.abs(area(r))>.5; }
+/* 2つの紙片が、広げた紙の上でつながっているか（辺を分け合っているか）。ただし、いま折ろうとしている線の上のつながりは数えない（そこは開くだけ） */
+function linked(P,Q,dist){
+  for(let i=0;i<P.o.length;i++){ const i2=(i+1)%P.o.length, a=P.o[i], b=P.o[i2], ex=b[0]-a[0], ey=b[1]-a[1], l=Math.hypot(ex,ey); if(l<.3) continue;
+    if(Math.abs(dist(P.p[i]))<.05&&Math.abs(dist(P.p[i2]))<.05) continue;
+    const tx=ex/l, ty=ey/l;
+    for(let j=0;j<Q.o.length;j++){ const c=Q.o[j], e=Q.o[(j+1)%Q.o.length];
+      if(Math.abs((c[0]-a[0])*ty-(c[1]-a[1])*tx)>.03||Math.abs((e[0]-a[0])*ty-(e[1]-a[1])*tx)>.03) continue;
+      const s0=(c[0]-a[0])*tx+(c[1]-a[1])*ty, s1=(e[0]-a[0])*tx+(e[1]-a[1])*ty;
+      if(Math.min(l,Math.max(s0,s1))-Math.max(0,Math.min(s0,s1))>.3) return true; } }
+  return false; }
+/* A をつまんで B へ持っていく。折り線は A と B の垂直二等分線。under＝山折り（折った紙が裏側へ回る）。
+   top でなければ、A の側の紙が、重なりごと全部裏返る。
+   top なら、A の所のいちばん上の紙（山折りなら、いちばん裏の紙）だけを折り返す。その紙とつながっていて一緒に動くしかない紙と、その上にのっている紙は、いっしょに動く */
+function fold(faces,A,B,under,top){
   const dx=A[0]-B[0], dy=A[1]-B[1], L=Math.hypot(dx,dy); if(L<4) return {err:'short'};
-  const nx=dx/L, ny=dy/L, px=(A[0]+B[0])/2, py=(A[1]+B[1])/2;
-  const stay=[], move=[]; let zmax=0; for(const f of faces) zmax=Math.max(zmax,f.z);
-  for(const f of faces){
-    const a=clipHalf(f.p,px,py,nx,ny,-1), b=clipHalf(f.p,px,py,nx,ny,1);
-    if(a.length>=3&&Math.abs(area(a))>.5) stay.push({p:a,flip:f.flip,z:f.z});
-    if(b.length>=3&&Math.abs(area(b))>.5){
-      const r=b.map(q=>{ const d=(q[0]-px)*nx+(q[1]-py)*ny; return [q[0]-2*d*nx,q[1]-2*d*ny]; });
-      let cross=false; for(let i=0;i<r.length;i++){
-        if(b[i][0]<.05&&Math.abs(r[i][0])>.5) return {err:'tear'};   // 中心線の上の紙が中心線から離れる折りは、左右がそこで裂けるので不可
-        if(r[i][0]<-0.05) cross=true; }
-      const z=under?-1-f.z:2*zmax+1-f.z;
-      if(!cross) move.push({p:r,flip:!f.flip,z});
-      else {                                                         // 中心線をこえて重なる折り：こえたぶんは、反対側の紙が同じだけこちらへ来ている（左右対称）
-        const pos=clipHalf(r,0,0,1,0,1), neg=clipHalf(r,0,0,1,0,-1).map(q=>[-q[0],q[1]]);
-        if(pos.length>=3&&Math.abs(area(pos))>.5) move.push({p:pos,flip:!f.flip,z});
-        if(neg.length>=3&&Math.abs(area(neg))>.5) move.push({p:neg,flip:!f.flip,z:z+(under?-.5:.5)}); } } }
+  const nx=dx/L, ny=dy/L, px=(A[0]+B[0])/2, py=(A[1]+B[1])/2, dist=q=>(q[0]-px)*nx+(q[1]-py)*ny;
+  let zmax=0; for(const f of faces) zmax=Math.max(zmax,f.z);
+  const parts=faces.map(f=>({f,a:clipFace(f,px,py,nx,ny,-1),b:clipFace(f,px,py,nx,ny,1),mv:!top})), cand=parts.filter(t=>t.b);
+  if(top){ const upper=(t,m)=>under?t.f.z<m.f.z:t.f.z>m.f.z; let seed=null;
+    for(const r of [0,3]){ for(const t of cand) if((r?edgeDist(t.b.p,A[0],A[1])<r:inside(t.b.p,A[0],A[1]))&&(!seed||upper(t,seed))) seed=t; if(seed) break; }   // つまんだ所の、いちばん上の紙
+    if(!seed) return {err:'none'};
+    seed.mv=true; const q=[seed];
+    while(q.length){ const m=q.pop(); for(const t of cand) if(!t.mv&&(linked(m.b,t.b,dist)||(upper(t,m)&&overlaps(m.b.p,t.b.p)))){ t.mv=true; q.push(t); } } }
+  const stay=[], move=[]; let ma=0;
+  for(const t of parts){ const f=t.f;
+    if(!t.b||!t.mv){ stay.push({p:f.p,o:f.o,flip:f.flip,z:f.z}); continue; }                 // 動かない面は、切らずにそのまま残す
+    if(t.a) stay.push({p:t.a.p,o:t.a.o,flip:f.flip,z:f.z});
+    const b=t.b, r=b.p.map(q=>{ const d=dist(q); return [q[0]-2*d*nx,q[1]-2*d*ny]; });
+    let cross=false; for(let i=0;i<r.length;i++){
+      if(b.o[i][2]&&Math.abs(r[i][0])>.5) return {err:'tear'};     // 中心線に留まっている紙が中心線から離れる折りは、左右がそこで裂けるので不可
+      if(r[i][0]<-0.05) cross=true; }
+    ma+=Math.abs(area(b.p));
+    const z=under?-1-f.z:2*zmax+1-f.z, m={p:r,o:b.o,flip:!f.flip,z};
+    if(!cross) move.push(m);
+    else {                                                         // 中心線をこえて重なる折り：こえたぶんは、反対側の紙が同じだけこちらへ来ている（左右対称）
+      const pos=clipFace(m,0,0,1,0,1,1), neg=clipFace(m,0,0,1,0,-1,1);
+      if(pos) move.push({p:pos.p,o:pos.o,flip:!f.flip,z});
+      if(neg) move.push({p:neg.p.map(q=>[-q[0],q[1]]),o:neg.o,flip:!f.flip,z:z+(under?-.5:.5)}); } }
   if(!move.length) return {err:'none'}; if(!stay.length) return {err:'all'};
-  return {faces:rankZ(stay.concat(move)),line:{px,py,nx,ny}};
+  return {faces:rankZ(stay.concat(move)),line:{px,py,nx,ny},ma};
+}
+/* 線 P1→P2 を引いて「上の紙だけ」折るときの、つまむ点。線の sg 側（+1/−1）で線に接している紙のうち、
+   引いた線分にかかっている、いちばん上（山折りなら、いちばん裏）の紙の、線ぎわ 2.5mm 内側の点を返す */
+function flapSeed(faces,P1,P2,sg,under){
+  const dx=P2[0]-P1[0], dy=P2[1]-P1[1], L=Math.hypot(dx,dy); if(L<4) return null; const tx=dx/L, ty=dy/L, nx=-ty*sg, ny=tx*sg; let best=null;
+  for(const f of faces){ const b=clipHalf(f.p,P1[0],P1[1],nx,ny,1); if(b.length<3||Math.abs(area(b))<=.5) continue;
+    let lo=1e9, hi=-1e9; for(const q of b) if(Math.abs((q[0]-P1[0])*nx+(q[1]-P1[1])*ny)<.05){ const t=(q[0]-P1[0])*tx+(q[1]-P1[1])*ty; lo=Math.min(lo,t); hi=Math.max(hi,t); }
+    if(!(hi-lo>1)) continue;
+    const a=Math.max(lo,0), c=Math.min(hi,L), on=c-a>1?1:0, k=under?-f.z:f.z;
+    if(!best||on>best.on||(on===best.on&&k>best.k)) best={on,k,t:on?(a+c)/2:(lo+hi)/2}; }
+  return best?[P1[0]+tx*best.t+nx*2.5,P1[1]+ty*best.t+ny*2.5]:null;
 }
 /* いちばん重なっている所の枚数（面の図心ごとに、そこにかかっている面を数える） */
 function stack(faces){ let n=1; for(const f of faces){ const c=centroid(f.p); if(!c) continue; let k=0; for(const g of faces) if(inside(g.p,c[0],c[1])) k++; if(k>n) n=k; } return n; }
@@ -313,13 +361,14 @@ function fly(pl,speed,ang,height,env,opt){      // 着地まで一気に計算�
 }
 
 /* ---------- お手本の折り方（紙の大きさに合わせて決まる） ---------- */
-function presets(paper){ const w=paper.pw;
+function presets(paper){ const w=paper.pw, d=Math.round(w*.15);   // d＝へそ（折り返す三角）の大きさ
   return [
     {id:'dart',name:'やり型',note:'角を2回、中心線へ折る。細くて速い',folds:[[[w,0],[0,w]],[[w,w],[0,w*Math.SQRT2]]],prm:{h:Math.round(w*.15),dih:8,elev:2.5,clips:0}},
-    {id:'heso',name:'へそ型',note:'先を折り返して、機首を重くする。ゆっくり安定',folds:[[[w,0],[0,w]],[[0,0],[0,2*w]],[[w,w],[0,2*w]]],prm:{h:Math.round(w*.14),dih:10,elev:2.5,clips:0}},
+    {id:'heso',name:'へそ型',note:'先を折り下げ、出た三角（へそ）だけを折り返して留める。ゆっくり安定',folds:[[[w,0],[0,w]],[[0,0],[0,2*(w+d)]],[[w,w+d],[0,2*w+d]],[[0,2*(w+d)],[0,2*w],2]],prm:{h:Math.round(w*.19),dih:8,elev:3,clips:0}},
   ]; }
-function applyFolds(paper,list){ let f=newPaper(paper); for(const [A,B,u] of list){ const r=fold(f,A,B,u); if(r.err) throw new Error('fold '+r.err); f=r.faces; } return f; }
+function applyFolds(paper,list){ let f=newPaper(paper); for(const [A,B,u] of list){ const r=fold(f,A,B,u&1,u&2);   // u：1＝山折り、2＝上の紙だけ
+    if(r.err) throw new Error('fold '+r.err); f=r.faces; } return f; }
 const toPrm=o=>({wl:o.wl||0,wa:(o.wa||0)*Math.PI/180,h:o.h,dih:o.dih*Math.PI/180,elev:o.elev*Math.PI/180,e:o.e||22,clips:o.clips||0,clipV:o.clipV||25});
 
-root.KH={groundPhi,groundKp,G,FOLD_MM,DIST,disturb,rng,stack,centroid,newFlex,flexUpdate,MATERIALS,SIZES,makePaper,air,makeEnv,newPaper,fold,clipHalf,area,bounds,spanAt,inside,buildPlane,buildRing,buildBall,aero,analyze,launch,step,fly,qrot,qinv,presets,applyFolds,toPrm,mapper};
+root.KH={flapSeed,overlaps,groundPhi,groundKp,G,FOLD_MM,DIST,disturb,rng,stack,centroid,newFlex,flexUpdate,MATERIALS,SIZES,makePaper,air,makeEnv,newPaper,fold,clipHalf,area,bounds,spanAt,inside,buildPlane,buildRing,buildBall,aero,analyze,launch,step,fly,qrot,qinv,presets,applyFolds,toPrm,mapper};
 })(typeof window!=='undefined'?window:globalThis);

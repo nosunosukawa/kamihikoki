@@ -156,7 +156,7 @@ details.more[open] summary{margin-bottom:6px}
 
   <div class="stage" id="stage">
     <canvas id="foldcv" aria-label="紙を折る台"></canvas>
-    <div class="tools" id="tools"><button class="tb" id="undo" aria-label="1手もどす"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4L3 8l4 4"/><path d="M3 8h8.5a5 5 0 010 10H8"/></svg><span>もどす</span></button><button class="tb" id="reset" aria-label="紙を広げる"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round" aria-hidden="true"><rect x="4.5" y="2.5" width="11" height="15" rx="1"/><path d="M10 2.5v15" stroke-dasharray="2 2.4" stroke-width="1.6"/></svg><span>広げる</span></button><button class="tb" id="mode" aria-pressed="false" aria-label="谷折りと山折りを切り替える"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path id="modeIcon" d="M3 6l7 8 7-8"/></svg><span id="modeTxt">谷折り</span></button><span id="foldN"></span></div>
+    <div class="tools" id="tools"><button class="tb" id="undo" aria-label="1手もどす"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4L3 8l4 4"/><path d="M3 8h8.5a5 5 0 010 10H8"/></svg><span>もどす</span></button><button class="tb" id="reset" aria-label="紙を広げる"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round" aria-hidden="true"><rect x="4.5" y="2.5" width="11" height="15" rx="1"/><path d="M10 2.5v15" stroke-dasharray="2 2.4" stroke-width="1.6"/></svg><span>広げる</span></button><button class="tb" id="mode" aria-pressed="false" aria-label="谷折りと山折りを切り替える"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path id="modeIcon" d="M3 6l7 8 7-8"/></svg><span id="modeTxt">谷折り</span></button><button class="tb" id="part" aria-pressed="false" aria-label="重なりごと折るか、上の紙だけ折るかを切り替える"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12.5l7 4 7-4"/><path id="partIcon" d="M3 8.5l7 4 7-4-7-4z"/></svg><span id="partTxt">ぜんぶ</span></button><span id="foldN"></span></div>
     <p class="hint" id="foldHint" role="status">紙の上に線を引くと、そこで折れます。黄色い角をタップして運ぶこともできます。</p>
     <div class="grab" id="grab"></div>
     <div class="hud" id="hud">
@@ -260,7 +260,7 @@ details.more[open] summary{margin-bottom:6px}
     </div>
     <p class="foot">計算のしくみ：折った紙の重なりから重心と慣性を出し、翼と胴体を細い帯に分けて、帯ごとの空気の力を足し合わせています（翼素法）。左下の流れの絵は、翼を真横から見て、まわりの空気の動きを解いたものです（格子ボルツマン法）。白い線が翼、オレンジと青は、翼の上と下で空気が渦を巻いている所（回る向きが逆）。傾きが大きくなると、上の帯が翼からはがれて乱れます（失速）。絵は見るためのもので、飛距離の計算には使っていません。<br>
 翼のしなり：翼を、付け根で固定した片持ちばりとして曲げます。1枚の曲げこわさは D＝E·t³/12（E はヤング率、t は厚さ）。重ねて折った所は、枚数ぶんだけ曲げにくくなります。E はコピー用紙 2.7GPa（規格表の曲げこわさから逆算）、新聞紙 1.3GPa、画用紙 2.0GPa の目安です。<br>
-空気抵抗：両面の摩擦（層流・ブラジウスの式）に、前縁の厚み（重なりの枚数×紙の厚さ）にかかる動圧を足しています。紙の厚さは、折れる回数の限界（重なりが約3mmまで）にも使います。谷折りと山折りは、紙の重なる順番（表と裏）が変わるだけで、この計算では飛び方は同じです。<br>
+空気抵抗：両面の摩擦（層流・ブラジウスの式）に、前縁の厚み（重なりの枚数×紙の厚さ）にかかる動圧を足しています。紙の厚さは、折れる回数の限界（重なりが約3mmまで）にも使います。谷折りと山折りは、紙の重なる順番（表と裏）が変わるだけで、この計算では飛び方は同じです。「上だけ」にすると、線を引いた所のいちばん上の紙だけが折り返ります（その紙とつながっていて一緒に動くしかない紙と、上にのっている紙は、いっしょに動きます）。<br>
 翼の先を立てる（垂直フラップ）：立てた部分は横すべりを止めて向きを安定させ、翼の先から空気が回りこむのを減らします（縦横比が 1＋1.9×高さ÷翼の幅 倍。ヘルナーの式）。そのかわり、浮く力を出す翼の面積は減ります。<br>
 地面効果：地面すれすれでは、地面が鏡のようにはたらいて、翼の先から回りこむ空気が弱まり、浮きやすくなります。翼の幅の 1/10 の高さで、浮く力にともなう抵抗は約半分です（だ円の揚力分布の翼と、地面をはさんだ鏡像のうずから計算。プラントルの揚力線理論）。円筒には入れていません。<br>
 外乱：投げるたびに、角度・傾き・向き・速さのぶれ、空気のゆらぎ、左右の翼の反りの差を、乱数で1回ぶん決めます。「なし」にすると毎回同じ結果になります。<br>
@@ -271,7 +271,7 @@ details.more[open] summary{margin-bottom:6px}
 <div class="toast" id="toast" role="status"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" integrity="sha512-dLxUelApnYxpLt6K2iomGngnHO83iUvZytA3YjDUCjT0HDOHKXnVYdf3hU4JjM8uEhxf9nD1/ey98U3t2vZ0qQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-<script src="core.js?v=7"></script>
+<script src="core.js?v=8"></script>
 <script>
 (()=>{
 'use strict';
@@ -298,7 +298,7 @@ const V3=THREE.Vector3;
 const CRUSH=100, D={loc:'yard',mat:'copy',size:'a4',kind:'plane',crush:0,folds:[],preset:'',h:16,dih:8,elev:2.5,clips:0,wl:0,wa:90,ringA:20,ringN:5,tight:0,dist:1,
   v:6,ang:5,spin:10,temp:20,alt:0,head:0,cross:0,gust:0};
 let paper, faces, history=[], env, pl, an, tab='make';
-function refold(){ sel=null; faces=K.newPaper(paper); history=[]; const ok=[]; for(const f of D.folds){ const r=K.fold(faces,f[0],f[1],f[2]); if(r.err) break; history.push(faces); faces=r.faces; ok.push(f); } D.folds=ok; }
+function refold(){ sel=null; faces=K.newPaper(paper); history=[]; const ok=[]; for(const f of D.folds){ const r=K.fold(faces,f[0],f[1],f[2]&1,f[2]&2); if(r.err) break; history.push(faces); faces=r.faces; ok.push(f); } D.folds=ok; }
 function buildAll(){
   const L=LOC(), sp=L.g!=null; env=K.makeEnv({tempC:D.temp,alt:D.alt,head:sp?0:D.head,cross:sp?0:D.cross,gust:sp?0:D.gust,g:L.g,rho:L.rho,mu:L.mu}); env.noGround=!!L.noGround;
   if(D.kind==='plane') pl=K.buildPlane(faces,K.toPrm({wl:D.wl,wa:D.wa,h:D.h,dih:D.dih,elev:D.elev,clips:D.clips,e:Math.max(12,paper.L*.075),clipV:paper.L*.08}),paper,env.rho);
@@ -308,13 +308,13 @@ function buildAll(){
   if(pl.flex&&an.trim!=null&&an.V>0&&an.state!=='dive'){ glideFx=K.newFlex(pl); const a=an.trim*DEG, vv=[an.V*Math.cos(a),-an.V*Math.sin(a),0], o={F:[0,0,0],M:[0,0,0]}; for(let k=0;k<10;k++){ K.aero(pl,vv,[0,0,0],o,env,glideFx); K.flexUpdate(pl,glideFx,o.F,-.6); } }
 }
 /* 機体をURLに入れる（共有用）。数字だけを読み、範囲を確かめてから使う */
-function encode(){ const o=Object.assign({},D,{folds:D.folds.map(f=>[f[0][0],f[0][1],f[1][0],f[1][1]].map(x=>Math.round(x*10)/10).concat(f[2]?[1]:[]))}); return btoa(unescape(encodeURIComponent(JSON.stringify(o)))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,''); }
+function encode(){ const o=Object.assign({},D,{folds:D.folds.map(f=>[f[0][0],f[0][1],f[1][0],f[1][1]].map(x=>Math.round(x*10)/10).concat(f[2]?[f[2]]:[]))}); return btoa(unescape(encodeURIComponent(JSON.stringify(o)))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,''); }
 function decode(h){ try{ const o=JSON.parse(decodeURIComponent(escape(atob(h.replace(/-/g,'+').replace(/_/g,'/')))));
     const num=(k,a,b)=>{ const v=Number(o[k]); if(Number.isFinite(v)) D[k]=clamp(v,a,b); };
     if(K.MATERIALS.some(m=>m.id===o.mat)) D.mat=o.mat; if(K.SIZES.some(s=>s.id===o.size)) D.size=o.size; if(['plane','ring','ball'].includes(o.kind)) D.kind=o.kind; if(LOCS.some(l=>l.id===o.loc)) D.loc=o.loc;
     num('crush',0,CRUSH); num('h',6,40); num('dih',-5,30); num('elev',-5,25); num('clips',0,3); num('wl',0,4); D.wl=Math.round(D.wl); num('wa',-90,90); num('ringA',10,40); num('ringN',1,6); num('tight',0,1); num('v',2,30); num('ang',-10,60); num('spin',0,15);
     num('dist',0,2); D.dist=Math.round(D.dist); num('temp',-10,40); num('alt',0,3000); num('head',-5,5); num('cross',-3,3); num('gust',0,2);
-    if(Array.isArray(o.folds)) D.folds=o.folds.slice(0,14).filter(f=>Array.isArray(f)&&(f.length===4||f.length===5)&&f.every(x=>Number.isFinite(Number(x)))).map(f=>[[clamp(+f[0],-400,400),clamp(+f[1],-100,600)],[clamp(+f[2],-400,400),clamp(+f[3],-100,600)],+f[4]===1?1:0]);
+    if(Array.isArray(o.folds)) D.folds=o.folds.slice(0,14).filter(f=>Array.isArray(f)&&(f.length===4||f.length===5)&&f.every(x=>Number.isFinite(Number(x)))).map(f=>[[clamp(+f[0],-400,400),clamp(+f[1],-100,600)],[clamp(+f[2],-400,400),clamp(+f[3],-100,600)],[1,2,3].includes(+f[4])?+f[4]:0]);
     return true; }catch(e){ return false; } }
 
 /* ================= 3D ================= */
@@ -410,7 +410,8 @@ const orbit={yaw:-.9,pitch:.42,auto:true};
 
 /* ================= 折る台（2D） ================= */
 const fc=$('#foldcv'), fx=fc.getContext('2d'); let FS={s:1,x0:0,y0:0}, drag=null, ghost=null, sel=null, selT=[], snapTol=12;
-let hv=null, hotFor=null, hotList=[], under=false;   // under＝山折り
+let hv=null, hotFor=null, hotList=[], under=false, topOnly=false;   // under＝山折り、topOnly＝上の紙だけ折る
+const FD=(A,B)=>K.fold(faces,A,B,under,topOnly);
 const HINT0='紙の上に線を引くと、そこで折れます。黄色い角をタップして運ぶこともできます。';
 function foldScale(){ const k=fc.width/Math.max(1,fc.clientWidth), wd=app.classList.contains('wide'), mx=(wd?150:68)*k, mt=14*k, mb=(wd?88:65)*k, aw=fc.width-2*mx, ah=fc.height-mt-mb;   // 左右は道具、下は案内のぶんを空ける
   const s=Math.max(.05,Math.min(aw/paper.W,ah/paper.L)); FS={s,x0:fc.width/2,y0:mt+(ah-paper.L*s)/2}; }
@@ -465,37 +466,40 @@ function targets(A){ const out=[], bd=K.bounds(faces), L=bd.vmax-bd.vmin, vs=ver
   else { for(const q of vs) if(Math.abs(q[1]-A[1])>6) add(0,2*q[1]-A[1]);                                    // ほかの角の高さを折り線にする
     for(const q of vs) if(Math.abs(q[1]-A[1])>6) add(0,q[1]);                                                // ほかの角の高さまで折る
     for(const sg of [1,-1]) for(const f of [1/4,1/2]) add(0,A[1]+sg*L*f); }                                  // 長さの 1/4・1/2
-  return out.filter(B=>!K.fold(faces,A,B).err).slice(0,5); }
+  return out.filter(B=>!FD(A,B).err).slice(0,5); }
 /* 角の一覧。きれいに折れる先がある角（ok）だけを、大きな黄色い点で見せる */
 function hots(){ if(hotFor!==faces){ hotFor=faces; hotList=verts().map(q=>({q,ok:targets(q).length>0})); } return hotList; }
 const near=(list,pt,r)=>{ let b=null; for(const t of list){ const d=Math.hypot(t[0]-pt[0],t[1]-pt[1]); if(d<r){ r=d; b=t; } } return b; };
-function pick(pt){ const k=(fc.width/fc.clientWidth)/FS.s, hs=hots();                                       // 指の近くの角。折れる角を優先し、広めに拾う
-  return near(hs.filter(h=>h.ok).map(h=>h.q),pt,(snapTol>12?40:22)*k)||near(hs.map(h=>h.q),pt,snapTol*k); }
+function pick(pt,tight){ const k=(fc.width/fc.clientWidth)/FS.s, hs=hots();                                 // 指の近くの角。折れる角を優先し、広めに拾う。tight＝角のすぐ近くだけ
+  return near(hs.filter(h=>h.ok).map(h=>h.q),pt,(tight?snapTol:snapTol>12?40:22)*k)||near(hs.map(h=>h.q),pt,snapTol*(tight?.6:1)*k); }
 const isHot=v=>hots().some(h=>h.q===v&&h.ok);
 function select(v){ sel=[v[0],v[1]]; selT=targets(sel); hint(selT.length?'持っていく先の青い丸をタップします。':'持っていく先までなぞるか、タップします。'); }
 /* 指の位置 B を、折れる所へ寄せる。候補の近くなら候補へ。折れない位置で中心線の近くなら、中心線に沿っていちばん近い折れる所へ */
 function settle(A,B,cand){ const tol=snapTol*(fc.width/fc.clientWidth)/FS.s; let best=null,bd=tol*1.2;
   for(const t of cand){ const d=Math.hypot(t[0]-B[0],t[1]-B[1]); if(d<bd){ bd=d; best=t; } }
-  if(best) return best; if(!K.fold(faces,A,B).err) return B;
-  if(B[0]<Math.max(tol*2,paper.pw*.25)) for(let k=0;k<=160;k++) for(const sg of (k?[-1,1]:[1])){ const t=[0,B[1]+sg*k*.5]; if(!K.fold(faces,A,t).err){
+  if(best) return best; if(!FD(A,B).err) return B;
+  if(B[0]<Math.max(tol*2,paper.pw*.25)) for(let k=0;k<=160;k++) for(const sg of (k?[-1,1]:[1])){ const t=[0,B[1]+sg*k*.5]; if(!FD(A,t).err){
       for(const c of cand) if(Math.hypot(c[0]-t[0],c[1]-t[1])<2) return c; return t; } }
   return B; }
 function snapLine(pt,P1){ const tol=snapTol*(fc.width/fc.clientWidth)/FS.s; let o=[pt[0],pt[1]], best=null, bd=tol*.8;
   for(const q of verts()) for(const sg of (q[0]<.5?[1]:[1,-1])){ const d=Math.hypot(sg*q[0]-o[0],q[1]-o[1]); if(d<bd){ bd=d; best=[sg*q[0],q[1]]; } }
   if(best) return best;
   if(Math.abs(o[0])<tol*.7) o[0]=0;
+  { let dv=tol*.45, du=tol*.45, sv=null, su=null; for(const q of verts()){ const a=Math.abs(q[1]-o[1]); if(a<dv){ dv=a; sv=q[1]; } for(const sg of [1,-1]){ const b=Math.abs(sg*q[0]-o[0]); if(b<du&&q[0]>.5){ du=b; su=sg*q[0]; } } } if(sv!=null) o[1]=sv; if(su!=null&&o[0]!==0) o[0]=su; }
   if(P1){ const dx=o[0]-P1[0], dy=o[1]-P1[1], L=Math.hypot(dx,dy); if(L>1){ const a=Math.atan2(dy,dx), st=Math.PI/4, a2=Math.round(a/st)*st; if(Math.abs(a-a2)<.1) o=[P1[0]+Math.cos(a2)*L,P1[1]+Math.sin(a2)*L]; } }
   return [Math.round(o[0]*2)/2,Math.round(o[1]*2)/2]; }
 /* 引いた線で折る。線のどちら側を折るかは、折れる側（両方折れるなら、小さい側）にする */
 function lineFold(P1,P2){ let a=P1, b=P2; if(a[0]<=0&&b[0]<=0&&(a[0]<0||b[0]<0)){ a=[-a[0],a[1]]; b=[-b[0],b[1]]; }      // 左半分に引いた線は、右半分に写す（左右対称）
   const dx=b[0]-a[0], dy=b[1]-a[1], L=Math.hypot(dx,dy); if(L<4) return null; const nx=-dy/L, ny=dx/L, mx=(a[0]+b[0])/2, my=(a[1]+b[1])/2, d=20; let best=null, err='none';
-  for(const sg of [1,-1]){ const A=[mx+nx*d*sg,my+ny*d*sg], B=[mx-nx*d*sg,my-ny*d*sg], r=K.fold(faces,A,B,under); if(r.err){ if(r.err==='tear') err='tear'; continue; }
-    let ar=0; for(const f of faces){ const c=K.clipHalf(f.p,mx,my,nx*sg,ny*sg,1); if(c.length>=3) ar+=Math.abs(K.area(c)); } if(!best||ar<best.ar) best={A,B,r,ar}; }
+  for(const sg of [1,-1]){ let A=[mx+nx*d*sg,my+ny*d*sg];
+    if(topOnly){ A=K.flapSeed(faces,a,b,sg,under); if(!A) continue; }                                                   // 線にかかっている、いちばん上の紙の線ぎわ
+    const k=(A[0]-mx)*nx+(A[1]-my)*ny, B=[A[0]-2*k*nx,A[1]-2*k*ny], r=FD(A,B); if(r.err){ if(r.err==='tear') err='tear'; continue; }
+    if(!best||r.ma<best.ar) best={A,B,r,ar:r.ma}; }
   return best||{err}; }
 /* 折る。きれいに折れたら形が変わる。折れなかった手や、厚くなりすぎたあとの手は、しわとして数える。合わせて100回で玉になる */
 const tooThick=f=>f.length>160||D.folds.length>=14||K.stack(f)*paper.th>K.FOLD_MM;      // 折ったあとの束が厚すぎるか
-function tryFold(A,B){ const r=K.fold(faces,A,B,under), over=r.err?faces.length>160||D.folds.length>=14:tooThick(r.faces), moved=Math.hypot(A[0]-B[0],A[1]-B[1])>=4;
-  if(moved&&!r.err&&!over){ history.push(faces); faces=r.faces; D.folds.push([A,B,under?1:0]); D.preset=''; changed(); hint('折れました。つづけて折るか、「次へ」で胴体と翼を折って飛行機の形にします。'); }
+function tryFold(A,B){ const r=FD(A,B), over=r.err?faces.length>160||D.folds.length>=14:tooThick(r.faces), moved=Math.hypot(A[0]-B[0],A[1]-B[1])>=4;
+  if(moved&&!r.err&&!over){ history.push(faces); faces=r.faces; D.folds.push([A,B,(under?1:0)|(topOnly?2:0)]); D.preset=''; changed(); hint('折れました。つづけて折るか、「次へ」で胴体と翼を折って飛行機の形にします。'); }
   else if(moved){ D.crush++; const n=D.folds.length+D.crush; if(n>=CRUSH) becomeBall(); else { changed();
       const why=over?`重なりが厚くて（約${(K.stack(r.err?faces:r.faces)*paper.th).toFixed(1)}mm）、もうきれいには折れません。`:r.err==='center'?'中心線をこえては折れません。':r.err==='tear'?'その折り方だと、紙が中心線で裂けてしまいます。':'そこでは折れません。';
       hint(n<25?why+`しわが付きました（折り ${n}回）`:n<60?`しわだらけになってきました（折り ${n}回）`:`もう紙というより、かたまりです（折り ${n}回）`,true); } } }
@@ -503,8 +507,8 @@ function onPaper(A){ return faces.some(f=>K.inside(f.p,A[0],A[1])||f.p.some(q=>M
 fc.addEventListener('pointerdown',e=>{ if(busy) return; e.preventDefault(); snapTol=e.pointerType==='mouse'?12:26; const p=evToPaper(e), pt=[p.u,p.v], v=pick(pt); ghost=null; hv=null;
   let d;
   if(sel&&!(v&&isHot(v)&&Math.hypot(v[0]-sel[0],v[1]-sel[1])>1)){ d={A:sel,B:sel,fromSel:true};                    // 角を選んだあとは、どこから指を動かしても、その角を持っていく
-    const t=near(selT,pt,snapTol*(fc.width/fc.clientWidth)/FS.s*1.6); if(t){ const r=K.fold(faces,sel,t,under); if(!r.err) ghost=r; } }   // 青い丸を押している間は、折り上がりを見せる
-  else if(v) d={A:[v[0],v[1]],B:[v[0],v[1]]};                                                                     // 角から始める＝角を運ぶ
+    const t=near(selT,pt,snapTol*(fc.width/fc.clientWidth)/FS.s*1.6); if(t){ const r=FD(sel,t); if(!r.err) ghost=r; } }   // 青い丸を押している間は、折り上がりを見せる
+  else if(pick(pt,true)){ const c=pick(pt,true); d={A:[c[0],c[1]],B:[c[0],c[1]]}; }                              // 角のすぐ近くから始める＝角を運ぶ
   else { const P=snapLine([p.side*p.u,p.v]); d={line:true,P1:P,P2:P}; }                                            // それ以外から始める＝線を引く
   try{ fc.setPointerCapture(e.pointerId); }catch(_){} drag=Object.assign(d,{side:p.side,id:e.pointerId,cx:e.clientX,cy:e.clientY,moved:false}); drawFold(); });
 fc.addEventListener('pointermove',e=>{ if(!drag){ if(e.pointerType==='mouse'&&!busy) hover(e); return; } if(e.pointerId!==drag.id) return;
@@ -512,10 +516,10 @@ fc.addEventListener('pointermove',e=>{ if(!drag){ if(e.pointerType==='mouse'&&!b
   const p=evToPaper(e);
   if(drag.line){ drag.P2=snapLine([p.side*p.u,p.v],drag.P1); drag.res=lineFold(drag.P1,drag.P2); ghost=drag.res&&drag.res.r||null; drawFold(); return; }
   if(drag.fromSel) drag.side=p.side;
-  drag.B=settle(drag.A,snap([p.side===drag.side?p.u:0,p.v],true,drag.A),drag.T); const r=K.fold(faces,drag.A,drag.B,under); ghost=r.err?null:r; drawFold(); });
+  drag.B=settle(drag.A,snap([p.side===drag.side?p.u:0,p.v],true,drag.A),drag.T); const r=FD(drag.A,drag.B); ghost=r.err?null:r; drawFold(); });
 /* マウス：角に合わせると白い輪、青い丸に合わせると折り上がりを先に見せる */
 function hover(e){ snapTol=12; const p=evToPaper(e), pt=[p.u,p.v]; let g=null, v=null;
-  if(sel){ const t=near(selT,pt,12*(fc.width/fc.clientWidth)/FS.s*1.6); if(t){ const r=K.fold(faces,sel,t,under); if(!r.err) g=r; } }
+  if(sel){ const t=near(selT,pt,12*(fc.width/fc.clientWidth)/FS.s*1.6); if(t){ const r=FD(sel,t); if(!r.err) g=r; } }
   if(!g) v=pick(pt);
   fc.style.cursor=g||v?'pointer':'crosshair';
   if(g||ghost||v!==hv){ ghost=g; hv=v; drawFold(); } }
@@ -526,7 +530,7 @@ function tap(e){ const p=evToPaper(e), pt=[p.u,p.v], tol=snapTol*(fc.width/fc.cl
       if(v&&Math.hypot(v[0]-sel[0],v[1]-sel[1])<1){ sel=null; hint(HINT0); return; }                      // 同じ角をもう一度＝やめる
       if(v&&isHot(v)){ select(v); return; }                                                               // ほかの折れる角＝選び直す
       if(selT.length){ hint('青い丸をタップします。好きな所へ折るときは、角をなぞります。',true); return; }
-      B=settle(sel,snap(pt,true,sel),selT); if(K.fold(faces,sel,B).err){ sel=null; hint('そこへは折れません。黄色い角をタップします。',true); return; } }
+      B=settle(sel,snap(pt,true,sel),selT); if(FD(sel,B).err){ sel=null; hint('そこへは折れません。黄色い角をタップします。',true); return; } }
     const A=sel; sel=null; tryFold(A,B); return; }
   if(v) select(v); else hint('線を引くときは、指を置いたまま動かします。角を運ぶときは、黄色い角をタップします。'); }
 function endDrag(e){ if(!drag||e.pointerId!==drag.id) return; const d=drag; drag=null; ghost=null; hv=null;
@@ -540,7 +544,7 @@ function becomeBall(){ D.crush=CRUSH-D.folds.length; D.kind='ball'; D.v=22; D.an
 function freshPaper(){ D.folds=[]; D.crush=0; D.preset=''; if(D.kind==='ball'){ D.kind='plane'; D.v=6; D.ang=5; syncInputs(); } refold(); changed(); requestAnimationFrame(fit); hint(HINT0); }
 function hint(t,bad){ const h=$('#foldHint'); h.textContent=t; h.classList.toggle('bad',!!bad); }
 let busy=false;
-async function runPreset(p){ if(busy) return; busy=true; D.folds=[]; D.crush=0; refold(); D.preset=p.id; changed(); for(const f of p.folds){ await new Promise(r=>setTimeout(r,420)); const r=K.fold(faces,f[0],f[1]); if(r.err) break; history.push(faces); faces=r.faces; D.folds.push([f[0].slice(),f[1].slice()]); changed(); }
+async function runPreset(p){ if(busy) return; busy=true; D.folds=[]; D.crush=0; refold(); D.preset=p.id; changed(); for(const f of p.folds){ await new Promise(r=>setTimeout(r,420)); const r=K.fold(faces,f[0],f[1],f[2]&1,f[2]&2); if(r.err) break; history.push(faces); faces=r.faces; D.folds.push([f[0].slice(),f[1].slice(),f[2]|0]); changed(); }
   D.h=p.prm.h; D.dih=p.prm.dih; D.elev=p.prm.elev; D.clips=p.prm.clips; syncInputs(); changed(); hint(`お手本「${p.name}」を折りました。${p.note}。`); busy=false; }
 
 /* ================= 画面の更新 ================= */
@@ -715,7 +719,10 @@ $('#undo').addEventListener('click',()=>{ if(busy) return; sel=null; if(D.crush>
 $('#reset').addEventListener('click',()=>{ if(busy) return; freshPaper(); });
 $$('#dist button').forEach(b=>b.addEventListener('click',()=>{ D.dist=+b.dataset.d; renderLabels(); }));
 $('#mode').addEventListener('click',()=>{ under=!under; $('#mode').setAttribute('aria-pressed',String(under)); $('#modeTxt').textContent=under?'山折り':'谷折り'; $('#modeIcon').setAttribute('d',under?'M3 14l7-8 7 8':'M3 6l7 8 7-8');
-  hint(under?'山折り：これから折る所は、紙の裏側へ回ります。':'谷折り：これから折る所は、手前に重なります。'); drawFold(); });
+  if(topOnly){ hotFor=null; sel=null; }                                                    // 上だけのときは、谷と山で、つまむ紙（いちばん上／いちばん裏）が変わる
+  hint(under?(topOnly?'山折り＋上だけ：いちばん裏の紙だけを、裏へ折り返します。':'山折り：これから折る所は、紙の裏側へ回ります。'):(topOnly?'谷折り＋上だけ：いちばん上の紙だけを、手前へ折り返します。':'谷折り：これから折る所は、手前に重なります。')); drawFold(); });
+$('#part').addEventListener('click',()=>{ topOnly=!topOnly; hotFor=null; sel=null; $('#part').setAttribute('aria-pressed',String(topOnly)); $('#partTxt').textContent=topOnly?'上だけ':'ぜんぶ';
+  hint(topOnly?(under?'上だけ：線を引いた所や選んだ角の、いちばん裏の紙だけを裏へ折り返します。':'上だけ：線を引いた所や選んだ角の、いちばん上の紙だけを折り返します。折り目の上に線を引くと、そこを開けます。'):'ぜんぶ：折り線の片側を、重なりごと折ります。'); drawFold(); });
 window.addEventListener('keydown',e=>{ if(tab!=='make'||D.kind!=='plane') return; const t=e.target&&e.target.tagName; if(t==='INPUT'||t==='SELECT'||t==='TEXTAREA') return;
   if((e.metaKey||e.ctrlKey)&&!e.shiftKey&&String(e.key).toLowerCase()==='z'){ e.preventDefault(); $('#undo').click(); }
   else if(e.key==='Escape'&&sel){ sel=null; hint(HINT0); drawFold(); } });
