@@ -1,0 +1,581 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<title>紙飛行機ラボ｜折って、計算して、飛ばす</title>
+<meta name="description" content="画面の上で紙を折って紙飛行機を作り、重心と空気の力を計算して飛ばすシミュレーター。材質・紙のサイズ・気温・風を変えられる。円筒や、くしゃくしゃに丸めた玉も投げられる。">
+<meta name="theme-color" content="#1F6B52">
+<meta property="og:type" content="website">
+<meta property="og:title" content="紙飛行機ラボ">
+<meta property="og:description" content="画面の上で紙を折り、重心と空気の力を計算して飛ばす。世界記録は 88.31m。">
+<meta property="og:url" content="https://nosunosukawa.github.io/kamihikoki/">
+<meta property="og:image" content="https://nosunosukawa.github.io/kamihikoki/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="紙飛行機ラボ">
+<meta name="twitter:description" content="画面の上で紙を折り、重心と空気の力を計算して飛ばす。世界記録は 88.31m。">
+<meta name="twitter:image" content="https://nosunosukawa.github.io/kamihikoki/og.png">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%231F6B52'/%3E%3Cpath d='M8 30l48-18-20 40-6-16z' fill='%23fbfaf5'/%3E%3Cpath d='M30 36l26-24-20 40z' fill='%23e5482d'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=Klee+One:wght@600&family=Zen+Kaku+Gothic+New:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --mat:#1F6B52; --mat-d:#185642; --grid:#2E8266; --paper:#FBFAF5; --red:#E5482D; --ink:#16241f; --pencil:#F2B632; --line:#c9d6cf;
+  --hand:"Klee One","Hiragino Maru Gothic ProN","Yu Gothic",sans-serif;
+  --body:"Zen Kaku Gothic New","Hiragino Sans","Yu Gothic",sans-serif;
+  --mono:"IBM Plex Mono","SF Mono",Menlo,Consolas,monospace;
+  --panel:360px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden;background:var(--mat);color:var(--ink);font-family:var(--body);font-weight:500;font-size:14px;line-height:1.55;
+  -webkit-text-size-adjust:100%;-webkit-tap-highlight-color:transparent;overscroll-behavior:none}
+button,select,input{font:inherit;color:inherit}
+button{border:0;background:none;cursor:pointer}
+button:focus-visible,select:focus-visible,input:focus-visible,a:focus-visible{outline:3px solid var(--pencil);outline-offset:2px}
+#gl{position:fixed;inset:0;width:100%;height:100%;display:block}
+.app{position:fixed;inset:0;display:grid;grid-template-columns:minmax(0,1fr) var(--panel);grid-template-rows:auto minmax(0,1fr);pointer-events:none}
+.bar{grid-column:1/-1;display:flex;align-items:center;gap:14px;padding:max(8px,env(safe-area-inset-top)) 14px 8px;background:var(--ink);color:var(--paper);pointer-events:auto}
+.bar h1{font-family:var(--hand);font-size:18px;font-weight:600;letter-spacing:.06em;white-space:nowrap}
+.bar h1 span{color:var(--pencil)}
+.tabs{display:flex;gap:4px;margin-left:auto}
+.tabs button{padding:6px 12px;border-radius:999px;font-weight:700;font-size:13px;color:#b9c9c1;white-space:nowrap}
+.tabs button[aria-selected="true"]{background:var(--paper);color:var(--ink)}
+.tabs button small{font-family:var(--mono);margin-right:4px;opacity:.7}
+.stage{position:relative;min-width:0;min-height:0;pointer-events:none}
+.stage>*{pointer-events:auto}
+#foldcv{position:absolute;inset:0;width:100%;height:100%;display:none;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;cursor:grab}
+.app[data-tab="make"][data-kind="plane"] #foldcv{display:block}
+.grab{position:absolute;inset:0;touch-action:none;display:none}
+.app[data-tab="tune"] .grab,.app[data-tab="make"]:not([data-kind="plane"]) .grab{display:block;cursor:grab}
+.panel{background:var(--paper);overflow-y:auto;-webkit-overflow-scrolling:touch;pointer-events:auto;padding:14px 16px max(16px,env(safe-area-inset-bottom));border-left:3px solid var(--ink)}
+.pane{display:none}
+.app[data-tab="make"] .pane.make,.app[data-tab="tune"] .pane.tune,.app[data-tab="fly"] .pane.fly{display:block}
+h2{font-family:var(--hand);font-size:16px;font-weight:600;margin:14px 0 6px;display:flex;align-items:baseline;gap:8px}
+h2:first-child{margin-top:0}
+h2 small{font-family:var(--body);font-size:11.5px;font-weight:500;color:#5b6b65}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+label.f{display:block;font-size:12px;color:#44544e;font-weight:700}
+select{width:100%;margin-top:3px;padding:8px 8px;border:1.5px solid var(--ink);border-radius:6px;background:#fff;font-weight:700}
+.seg{display:grid;grid-template-columns:repeat(3,1fr);border:1.5px solid var(--ink);border-radius:8px;overflow:hidden}
+.seg button{padding:9px 4px;font-weight:700;font-size:13px;border-right:1.5px solid var(--ink);line-height:1.25}
+.seg button:last-child{border-right:0}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+.seg small{display:block;font-size:10.5px;font-weight:500;opacity:.8}
+.hint{background:#eef3ef;border-left:4px solid var(--mat);padding:8px 10px;font-size:13px;margin:8px 0;border-radius:0 6px 6px 0}
+.hint.bad{background:#fdecea;border-color:var(--red)}
+.btns{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
+.b{padding:9px 12px;border:1.5px solid var(--ink);border-radius:8px;font-weight:700;font-size:13px;background:#fff;text-align:center;text-decoration:none;color:var(--ink);display:inline-block}
+.b:active{transform:translateY(1px)}
+.b.go{background:var(--red);border-color:var(--red);color:#fff;font-size:16px;padding:13px 16px;width:100%;font-family:var(--hand);letter-spacing:.08em;box-shadow:0 4px 0 #a82d18}
+.b.go:active{transform:translateY(3px);box-shadow:0 1px 0 #a82d18}
+.b.x{background:#0b0b0b;border-color:#0b0b0b;color:#fff;width:100%}
+.b.wide{width:100%}
+.b[disabled]{opacity:.45}
+.sl{display:grid;grid-template-columns:1fr auto;gap:2px 8px;align-items:center;margin:9px 0}
+.sl label{font-size:12.5px;font-weight:700}
+.sl output{font-family:var(--mono);font-size:13px;font-weight:600}
+.sl input{grid-column:1/-1;width:100%;accent-color:var(--mat);height:26px}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:0 14px;margin:6px 0;border-top:1.5px solid var(--ink)}
+.stats div{display:flex;justify-content:space-between;align-items:baseline;gap:6px;padding:4px 0;border-bottom:1px solid var(--line);font-size:12.5px}
+.stats b{font-family:var(--mono);font-weight:600;font-size:13px;white-space:nowrap}
+#topview{width:100%;height:150px;display:block;background:#fff;border:1.5px solid var(--ink);border-radius:6px;margin:8px 0 2px}
+.cap{font-size:11px;color:#5b6b65}
+.hud{position:absolute;left:12px;top:10px;display:none;gap:6px 14px;flex-wrap:wrap;max-width:calc(100% - 24px);color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.7);pointer-events:none}
+.app[data-tab="fly"] .hud{display:flex}
+.hud div{line-height:1.05}
+.hud small{display:block;font-size:11px;opacity:.9}
+.hud b{font-family:var(--mono);font-weight:600;font-size:clamp(20px,5.2vw,30px)}
+.hud i{font-style:normal;font-size:12px;margin-left:2px}
+.lb{position:absolute;left:12px;bottom:12px;display:none;pointer-events:none}
+.app[data-tab="fly"][data-kind="plane"] .lb,.app[data-tab="tune"][data-kind="plane"] .lb{display:block}
+.lb canvas{display:block;width:min(46vw,300px);aspect-ratio:132/56;border:2px solid rgba(255,255,255,.75);border-radius:6px;background:#0d2a22}
+.lb p{font-size:10.5px;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.8);margin-top:3px;max-width:min(46vw,300px);line-height:1.35}
+.ff{position:absolute;right:12px;bottom:12px;display:none;background:rgba(22,36,31,.8);color:#fff;font-weight:700;font-size:12.5px;padding:7px 12px;border-radius:999px;border:1.5px solid rgba(255,255,255,.6)}
+.app[data-tab="fly"] .ff{display:block}
+.result{display:none;border:2px solid var(--ink);border-radius:10px;padding:12px;margin:0 0 12px;background:#fff}
+.result.on{display:block}
+.result .big{font-family:var(--mono);font-weight:600;font-size:46px;line-height:1;color:var(--red)}
+.result .big i{font-style:normal;font-size:18px;margin-left:4px;color:var(--ink)}
+.result p{font-size:13px;margin-top:4px}
+#chart{width:100%;height:110px;display:block;margin:8px 0 2px;border:1px solid var(--line);border-radius:6px;background:#f7faf8}
+.foot{font-size:11px;color:#5b6b65;margin-top:14px;line-height:1.6}
+.toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--ink);color:#fff;font-size:13px;padding:9px 14px;border-radius:8px;z-index:9;opacity:0;transition:opacity .2s;pointer-events:none;white-space:nowrap}
+.toast.on{opacity:1}
+[hidden]{display:none!important}
+@media (max-width:760px){
+  .app{grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr) minmax(0,46%)}
+  .panel{border-left:0;border-top:3px solid var(--ink)}
+  .bar{gap:8px;padding-left:10px;padding-right:10px} .bar h1{font-size:15px} .tabs button{padding:6px 9px;font-size:12px}
+  .lb canvas,.lb p{width:44vw;max-width:44vw}
+}
+</style>
+</head>
+<body>
+<canvas id="gl" aria-label="紙飛行機の立体表示"></canvas>
+<div class="app" id="app" data-tab="make" data-kind="plane">
+  <header class="bar">
+    <h1>紙飛行機<span>ラボ</span></h1>
+    <nav class="tabs" role="tablist">
+      <button role="tab" data-tab="make" aria-selected="true"><small>1</small>つくる</button>
+      <button role="tab" data-tab="tune" aria-selected="false"><small>2</small>仕上げ</button>
+      <button role="tab" data-tab="fly" aria-selected="false"><small>3</small>飛ばす</button>
+    </nav>
+  </header>
+
+  <div class="stage" id="stage">
+    <canvas id="foldcv" aria-label="紙を折る台"></canvas>
+    <div class="grab" id="grab"></div>
+    <div class="hud" id="hud">
+      <div><small>距離</small><b id="hDist">0.0</b><i>m</i></div>
+      <div><small>高さ</small><b id="hAlt">0.0</b><i>m</i></div>
+      <div><small>速さ</small><b id="hSpd">0.0</b><i>m/s</i></div>
+      <div><small>迎角</small><b id="hAoa">0</b><i>°</i></div>
+      <div><small>時間</small><b id="hTime">0.0</b><i>秒</i></div>
+    </div>
+    <button class="ff" id="ff">早送り ×1</button>
+    <div class="lb"><canvas id="lb" width="132" height="56"></canvas><p id="lbCap"></p></div>
+  </div>
+
+  <aside class="panel" id="panel">
+    <!-- 1 つくる -->
+    <div class="pane make">
+      <h2>紙をえらぶ</h2>
+      <div class="row">
+        <label class="f">材質<select id="mat"></select></label>
+        <label class="f">サイズ<select id="size"></select></label>
+      </div>
+      <p class="cap" id="paperCap"></p>
+      <h2>つくるもの</h2>
+      <div class="seg" id="kind" style="grid-template-columns:1fr 1fr">
+        <button data-kind="plane" aria-pressed="true">折る飛行機<small>自分で折る</small></button>
+        <button data-kind="ring" aria-pressed="false">円筒<small>輪の翼</small></button>
+      </div>
+      <div id="mkPlane">
+        <p class="hint" id="foldHint">紙の角や辺を<b>つまんで、持っていきたい所までドラッグ</b>します。左右は同時に折れます。</p>
+        <div class="btns" id="presets"></div>
+        <div class="btns"><button class="b" id="undo">1手もどす</button><button class="b" id="reset">広げる</button><span class="cap" id="foldN" style="align-self:center"></span></div>
+      </div>
+      <div id="mkRing" hidden>
+        <p class="hint">長い辺を何回か折り返して前の縁を重くし、輪にします。回転をかけて投げる機体です。</p>
+        <div class="sl"><label for="ringA">折り返しの幅</label><output id="ringAo"></output><input id="ringA" type="range" min="10" max="40" step="1" value="20"></div>
+        <div class="sl"><label for="ringN">折り返す回数</label><output id="ringNo"></output><input id="ringN" type="range" min="1" max="6" step="1" value="5"></div>
+      </div>
+      <div id="mkBall" hidden>
+        <p class="hint">100回折って、紙がくしゃくしゃの玉になりました（裏技）。翼がないので、空気抵抗を受けながら放物線で飛びます。そのかわり、思いきり速く投げられます。</p>
+        <div class="seg" id="tight" style="grid-template-columns:1fr 1fr"><button data-t="0" aria-pressed="true">ふんわり丸める</button><button data-t="1" aria-pressed="false">固くにぎる</button></div>
+        <div class="btns"><button class="b" id="reset2">新しい紙でやり直す</button></div>
+      </div>
+      <div class="btns"><button class="b go" data-go="tune">仕上げへ進む</button></div>
+    </div>
+
+    <!-- 2 仕上げ -->
+    <div class="pane tune">
+      <div id="tnPlane">
+        <h2>かたちを仕上げる</h2>
+        <div class="sl"><label for="pH">胴体の深さ</label><output id="pHo"></output><input id="pH" type="range" min="6" max="40" step="1" value="16"></div>
+        <div class="sl"><label for="pDih">翼の上向きの角度（上反角）</label><output id="pDiho"></output><input id="pDih" type="range" min="-5" max="30" step="1" value="8"></div>
+        <div class="sl"><label for="pElev">後ろの縁の反り上げ</label><output id="pElevo"></output><input id="pElev" type="range" min="-5" max="25" step="0.5" value="2.5"></div>
+        <div class="sl"><label for="pClip">先に付けるクリップ</label><output id="pClipo"></output><input id="pClip" type="range" min="0" max="3" step="1" value="0"></div>
+      </div>
+      <h2>診断<small>折った形から計算</small></h2>
+      <p class="hint" id="verdict"></p>
+      <canvas id="topview" width="640" height="300" aria-label="上から見た機体。重心と中立点"></canvas>
+      <p class="cap" id="topCap"></p>
+      <div class="stats" id="stats"></div>
+      <div class="btns"><button class="b go" data-go="fly">飛ばしに行く</button></div>
+    </div>
+
+    <!-- 3 飛ばす -->
+    <div class="pane fly">
+      <div class="result" id="result">
+        <div class="big"><span id="rDist">0.0</span><i>m</i></div>
+        <p id="rLine"></p>
+        <canvas id="chart" width="640" height="220" aria-label="横から見た飛び方"></canvas>
+        <p class="cap" id="chartCap"></p>
+        <div class="btns">
+          <a class="b x" id="shareX" target="_blank" rel="noopener" href="https://x.com/intent/post">結果をXに投稿</a>
+          <button class="b wide" id="shareImg">記録の画像を保存・共有</button>
+          <button class="b wide" id="shareUrl">この機体のURLをコピー</button>
+        </div>
+      </div>
+      <h2>投げる場所</h2>
+      <label class="f"><select id="loc"></select></label>
+      <p class="cap" id="locCap" style="margin-top:4px"></p>
+      <h2>投げ方</h2>
+      <div class="sl"><label for="tV">投げる速さ</label><output id="tVo"></output><input id="tV" type="range" min="2" max="15" step="0.5" value="6"></div>
+      <div class="sl"><label for="tA">投げる角度</label><output id="tAo"></output><input id="tA" type="range" min="-10" max="60" step="1" value="5"></div>
+      <div class="sl" id="spinRow" hidden><label for="tS">回転</label><output id="tSo"></output><input id="tS" type="range" min="0" max="15" step="1" value="10"></div>
+      <div class="btns"><button class="b go" id="throw">投げる</button></div>
+      <h2>空気と風<small id="rhoCap"></small></h2>
+      <div id="airBox">
+      <div class="sl"><label for="eT">気温</label><output id="eTo"></output><input id="eT" type="range" min="-10" max="40" step="1" value="20"></div>
+      <div class="sl"><label for="eAlt">標高</label><output id="eAlto"></output><input id="eAlt" type="range" min="0" max="3000" step="100" value="0"></div>
+      <div class="sl"><label for="eHead">風（前後）</label><output id="eHeado"></output><input id="eHead" type="range" min="-5" max="5" step="0.5" value="0"></div>
+      <div class="sl"><label for="eCross">風（横）</label><output id="eCrosso"></output><input id="eCross" type="range" min="-3" max="3" step="0.5" value="0"></div>
+      <div class="sl"><label for="eGust">風の息（突風）</label><output id="eGusto"></output><input id="eGust" type="range" min="0" max="2" step="0.1" value="0"></div>
+      </div>
+      <p class="cap" id="bestCap"></p>
+    </div>
+    <p class="foot">計算のしくみ：折った紙の重なりから重心と慣性を出し、翼と胴体を細い帯に分けて、帯ごとの空気の力を足し合わせています（翼素法）。左下の流れの絵は、翼の断面まわりを2次元で解いたものです（格子ボルツマン法）。実物の紙のしなりや折りぐせは入っていません。<br>世界記録：飛距離 88.31m（2022年）、滞空 29.2秒（2010年）。ギネス世界記録より。<br>月の重力は 1.62m/s²、火星は重力 3.71m/s²・大気の密度 約0.020kg/m³ として計算（NASA の資料の値）。</p>
+  </aside>
+</div>
+<div class="toast" id="toast" role="status"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" integrity="sha512-dLxUelApnYxpLt6K2iomGngnHO83iUvZytA3YjDUCjT0HDOHKXnVYdf3hU4JjM8uEhxf9nD1/ey98U3t2vZ0qQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="core.js"></script>
+<script>
+(()=>{
+'use strict';
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const K=window.KH, app=$('#app');
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v)), TAU=Math.PI*2, DEG=Math.PI/180;
+const TAG='#紙飛行機ラボ', REC_DIST=88.31, REC_TIME=29.2;
+const LOCS=[
+  {id:'yard',name:'校庭',h:1.7,note:'手の高さ 1.7m から。世界記録と比べられる標準の場所'},
+  {id:'roof',name:'校舎の屋上',h:15,note:'高さ 15m。滑空比のよい機体ほど遠くへ届く'},
+  {id:'tower',name:'展望タワー',h:150,note:'高さ 150m。着地まで1分以上かかるので、早送りが便利'},
+  {id:'cliff',name:'山の上の崖',h:300,alt:3000,note:'標高 3000m・高さ 300m。空気がうすく、速く滑る'},
+  {id:'moon',name:'月面',h:1.7,g:1.62,rho:0,sky:'#04060a',ground:'#8d8d8d',note:'空気がない。翼は何もせず、どの機体も同じ放物線で飛ぶ'},
+  {id:'mars',name:'火星',h:1.7,g:3.71,rho:0.020,mu:1.08e-5,sky:'#d8a56f',ground:'#a4553a',note:'大気は地球の約60分の1、重力は0.38倍。そうとう速く投げないと翼が効かない'},
+  {id:'iss',name:'宇宙ステーションの中',h:2,g:0,noGround:true,tmax:20,sky:'#dfe6ea',note:'無重力。長さ 11m の部屋。反り上げた機体は宙返りを続ける'},
+];
+const LOC=()=>LOCS.find(l=>l.id===D.loc)||LOCS[0];
+const COLORS={news:['#d8d4c6','#cbc6b6'],origami:['#fbfaf5','#e5482d'],copy:['#fbfaf5','#dfe7ee'],fine:['#fbfaf5','#dbe5f0'],guinness:['#fdfdf8','#d3e2f3'],draw:['#f5efdc','#eadfc2']};
+const KIND_NAME={plane:'折った飛行機',ring:'円筒',ball:'くしゃくしゃ玉'};
+if(!window.THREE||!K){ $('#foldHint').textContent='部品を読み込めませんでした。通信を確かめて、もう一度開いてください。'; return; }
+const V3=THREE.Vector3;
+
+/* ================= 状態 ================= */
+const CRUSH=100, D={loc:'yard',mat:'copy',size:'a4',kind:'plane',crush:0,folds:[],preset:'',h:16,dih:8,elev:2.5,clips:0,ringA:20,ringN:5,tight:0,
+  v:6,ang:5,spin:10,temp:20,alt:0,head:0,cross:0,gust:0};
+let paper, faces, history=[], env, pl, an, tab='make';
+function refold(){ faces=K.newPaper(paper); history=[]; const ok=[]; for(const f of D.folds){ const r=K.fold(faces,f[0],f[1]); if(r.err) break; history.push(faces); faces=r.faces; ok.push(f); } D.folds=ok; }
+function buildAll(){
+  const L=LOC(), sp=L.g!=null; env=K.makeEnv({tempC:D.temp,alt:D.alt,head:sp?0:D.head,cross:sp?0:D.cross,gust:sp?0:D.gust,g:L.g,rho:L.rho,mu:L.mu}); env.noGround=!!L.noGround;
+  if(D.kind==='plane') pl=K.buildPlane(faces,K.toPrm({h:D.h,dih:D.dih,elev:D.elev,clips:D.clips,e:Math.max(12,paper.L*.075),clipV:paper.L*.08}),paper,env.rho);
+  else if(D.kind==='ring') pl=K.buildRing(paper,{a:D.ringA,n:D.ringN},env.rho)||K.buildRing(paper,{a:10,n:1},env.rho);
+  else pl=K.buildBall(paper,{tight:D.tight});
+  an=K.analyze(pl,env);
+}
+/* 機体をURLに入れる（共有用）。数字だけを読み、範囲を確かめてから使う */
+function encode(){ const o=Object.assign({},D,{folds:D.folds.map(f=>[f[0][0],f[0][1],f[1][0],f[1][1]].map(x=>Math.round(x*10)/10))}); return btoa(unescape(encodeURIComponent(JSON.stringify(o)))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,''); }
+function decode(h){ try{ const o=JSON.parse(decodeURIComponent(escape(atob(h.replace(/-/g,'+').replace(/_/g,'/')))));
+    const num=(k,a,b)=>{ const v=Number(o[k]); if(Number.isFinite(v)) D[k]=clamp(v,a,b); };
+    if(K.MATERIALS.some(m=>m.id===o.mat)) D.mat=o.mat; if(K.SIZES.some(s=>s.id===o.size)) D.size=o.size; if(['plane','ring','ball'].includes(o.kind)) D.kind=o.kind; if(LOCS.some(l=>l.id===o.loc)) D.loc=o.loc;
+    num('crush',0,CRUSH); num('h',6,40); num('dih',-5,30); num('elev',-5,25); num('clips',0,3); num('ringA',10,40); num('ringN',1,6); num('tight',0,1); num('v',2,30); num('ang',-10,60); num('spin',0,15);
+    num('temp',-10,40); num('alt',0,3000); num('head',-5,5); num('cross',-3,3); num('gust',0,2);
+    if(Array.isArray(o.folds)) D.folds=o.folds.slice(0,14).filter(f=>Array.isArray(f)&&f.length===4&&f.every(x=>Number.isFinite(Number(x)))).map(f=>[[clamp(+f[0],0,400),clamp(+f[1],-50,500)],[clamp(+f[2],0,400),clamp(+f[3],-50,500)]]);
+    return true; }catch(e){ return false; } }
+
+/* ================= 3D ================= */
+const canvas=$('#gl'); let renderer;
+try{ renderer=new THREE.WebGLRenderer({canvas,antialias:true,preserveDrawingBuffer:true}); }catch(e){ $('#foldHint').textContent='この端末では3D表示（WebGL）が使えません。'; return; }
+renderer.setPixelRatio(Math.min(2,window.devicePixelRatio||1));
+const camera=new THREE.PerspectiveCamera(42,1,.02,4000);
+let groundMesh, treeMesh, platform, issBox; const lineGroup=new THREE.Group();
+const hangar=new THREE.Scene(), field=new THREE.Scene();
+hangar.background=new THREE.Color(0x1F6B52); field.background=new THREE.Color(0xbfe0f4); field.fog=new THREE.Fog(0xcfe7f5,60,420);
+for(const sc of [hangar,field]){ sc.add(new THREE.HemisphereLight(0xffffff,0x6f8f7c,.78)); const d=new THREE.DirectionalLight(0xffffff,.7); d.position.set(-3,6,4); sc.add(d); }
+function gridTex(bg,line,line2,n){ const c=document.createElement('canvas'); c.width=c.height=256; const g=c.getContext('2d'); g.fillStyle=bg; g.fillRect(0,0,256,256);
+  g.strokeStyle=line; g.lineWidth=1; for(let i=0;i<=n;i++){ const p=i*256/n; g.beginPath(); g.moveTo(p,0); g.lineTo(p,256); g.moveTo(0,p); g.lineTo(256,p); g.stroke(); }
+  g.strokeStyle=line2; g.lineWidth=3; g.strokeRect(0,0,256,256); const t=new THREE.CanvasTexture(c); t.wrapS=t.wrapT=THREE.RepeatWrapping; t.anisotropy=renderer.capabilities.getMaxAnisotropy(); return t; }
+{ const t=gridTex('#1F6B52','#2E8266','#3c9a7a',5); t.repeat.set(40,40); const m=new THREE.Mesh(new THREE.PlaneGeometry(4,4),new THREE.MeshBasicMaterial({map:t})); m.rotation.x=-Math.PI/2; m.position.y=-.16; hangar.add(m); }
+// 原っぱ：5mごとの線と、10mごとの数字
+{ const t=gridTex('#ffffff','#eaeaea','#eaeaea',2); t.repeat.set(480,240); groundMesh=new THREE.Mesh(new THREE.PlaneGeometry(2400,1200),new THREE.MeshBasicMaterial({map:t,color:0x7fb069})); groundMesh.rotation.x=-Math.PI/2; groundMesh.position.set(900,0,0); field.add(groundMesh); field.add(lineGroup);
+  const lm=new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:.8});
+  for(let x=0;x<=120;x+=5){ const l=new THREE.Mesh(new THREE.PlaneGeometry(x%10?.06:.12,24),lm); l.rotation.x=-Math.PI/2; l.position.set(x,.01,0); lineGroup.add(l);
+    if(x&&x%10===0){ const c=document.createElement('canvas'); c.width=256; c.height=128; const q=c.getContext('2d'); q.fillStyle='#fff'; q.font='600 96px "IBM Plex Mono",monospace'; q.textAlign='center'; q.textBaseline='middle'; q.fillText(x+'m',128,70);
+      const s=new THREE.Mesh(new THREE.PlaneGeometry(3,1.5),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(c),transparent:true})); s.rotation.x=-Math.PI/2; s.rotation.z=-Math.PI/2; s.position.set(x-.9,.02,-9.5); lineGroup.add(s); } }
+  const cl=new THREE.Mesh(new THREE.PlaneGeometry(240,.08),lm); cl.rotation.x=-Math.PI/2; cl.position.set(120,.012,0); lineGroup.add(cl);
+  const rec=new THREE.Mesh(new THREE.PlaneGeometry(.25,24),new THREE.MeshBasicMaterial({color:0xE5482D})); rec.rotation.x=-Math.PI/2; rec.position.set(REC_DIST,.015,0); lineGroup.add(rec);
+  const cone=new THREE.ConeGeometry(1,1,6); cone.translate(0,.5,0); const N=150, tr=new THREE.InstancedMesh(cone,new THREE.MeshLambertMaterial({color:0xffffff}),N), M=new THREE.Matrix4(), col=new THREE.Color();
+  let sd=7; const rnd=()=>{ sd=(sd*16807)%2147483647; return sd/2147483647; };
+  for(let i=0;i<N;i++){ const x=-20+rnd()*260, z=(rnd()<.5?-1:1)*(15+rnd()*45), h=5+rnd()*7, r=1.6+rnd()*1.6; M.compose(new V3(x,0,z),new THREE.Quaternion(),new V3(r,h,r)); tr.setMatrixAt(i,M); tr.setColorAt(i,col.setHSL(.3+rnd()*.08,.4,.24+rnd()*.12)); }
+  treeMesh=tr; field.add(tr);
+  platform=new THREE.Mesh(new THREE.BoxGeometry(1,1,1),new THREE.MeshLambertMaterial({color:0x33413b})); field.add(platform);
+  issBox=new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(11,4,4,11,2,2)),new THREE.LineBasicMaterial({color:0x5b6b75})); issBox.position.set(5.5,2,0); field.add(issBox);
+  for(let x=0;x<=11;x++){ const r=new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints([new V3(x,0,-2),new V3(x,4,-2),new V3(x,4,2),new V3(x,0,2)]),new THREE.LineBasicMaterial({color:x===11?0xE5482D:0x9aa8b0})); r.position.set(-5.5,-2,0); issBox.add(r); } }
+// 吹き流し（風の向きと強さ）
+const sock=new THREE.Group(); { const p=new THREE.Mesh(new THREE.CylinderGeometry(.03,.03,3,8),new THREE.MeshLambertMaterial({color:0xeeeeee})); p.position.y=1.5; sock.add(p);
+  const c=new THREE.Mesh(new THREE.ConeGeometry(.22,1.3,10,1,true),new THREE.MeshLambertMaterial({color:0xE5482D,side:THREE.DoubleSide})); c.geometry.rotateZ(Math.PI/2); c.geometry.translate(.65,0,0); c.position.y=3; sock.add(c); sock.userData.c=c; sock.position.set(3,0,-3.5); field.add(sock); }
+const model=new THREE.Group(); model.matrixAutoUpdate=true; hangar.add(model);
+const trailGeo=new THREE.BufferGeometry(), trailPos=new Float32Array(3000*3); trailGeo.setAttribute('position',new THREE.BufferAttribute(trailPos,3)); trailGeo.setDrawRange(0,0);
+const trail=new THREE.Line(trailGeo,new THREE.LineBasicMaterial({color:0xE5482D})); trail.frustumCulled=false; field.add(trail);
+const shadow=new THREE.Mesh(new THREE.CircleGeometry(.14,20),new THREE.MeshBasicMaterial({color:0x000000,transparent:true,opacity:.25})); shadow.rotation.x=-Math.PI/2; field.add(shadow);
+
+function applyLoc(){ const L=LOC(), earth=L.g==null, high=L.h>20;
+  field.background=new THREE.Color(L.sky||'#bfe0f4'); field.fog.color.set(L.sky||'#cfe7f5'); field.fog.near=L.id==='moon'?1e5:high?250:60; field.fog.far=L.id==='moon'?1e6:high?2200:420;
+  groundMesh.material.color.set(L.ground||'#7fb069'); groundMesh.visible=lineGroup.visible=shadow.visible=!L.noGround; treeMesh.visible=sock.visible=earth; issBox.visible=L.id==='iss';
+  const P=platform; P.visible=!L.noGround; P.material.color.set(L.id==='roof'?0xd9d2c4:L.id==='tower'?0x8b98a2:L.id==='cliff'?0x7a6a55:0x33413b);
+  if(L.id==='roof'){ P.scale.set(30,L.h-.02,40); P.position.set(-15.2,L.h/2,0); } else if(L.id==='tower'){ P.scale.set(9,L.h-.02,9); P.position.set(-4.7,L.h/2,0); }
+  else if(L.id==='cliff'){ P.scale.set(900,L.h-.02,1400); P.position.set(-450.2,L.h/2,0); } else { P.scale.set(.06,L.h,.06); P.position.set(-.25,L.h/2,.5); }
+  $('#locCap').textContent=L.note; $('#airBox').hidden=!earth; }
+function disposeModel(){ while(model.children.length){ const c=model.children.pop(); c.geometry&&c.geometry.dispose(); c.material&&c.material.dispose(); } }
+function buildMesh(){
+  disposeModel(); const [cFront,cBack]=COLORS[D.mat].map(c=>new THREE.Color(c));
+  if(D.kind==='plane'){
+    const pos=[],col=[],ln=[], P=pl.P, h=pl.h, vH=pl.vH, cx=pl.cg[0], cy=pl.cg[1];
+    const put=(poly,wing,f)=>{ if(poly.length<3) return; const top=f.flip?cBack:cFront, bot=f.flip?cFront:cBack, sh=1-.035*Math.min(f.z,8);
+      for(const s of [1,-1]) for(const side of [1,-1]){ const c=side>0?top:bot, off=(.28*f.z+.06+side*.05)*1e-3;
+        const pts=poly.map(q=>{ const p=P(q[0],q[1],s); return wing?[p[0]-cx,p[1]-cy+off,p[2]]:[p[0]-cx,p[1]-cy,p[2]+s*off]; });
+        for(let i=1;i<pts.length-1;i++){ pos.push(...pts[0],...pts[i],...pts[i+1]); for(let k=0;k<3;k++) col.push(c.r*sh,c.g*sh,c.b*sh); }
+        if(side>0) for(let i=0;i<pts.length;i++){ ln.push(...pts[i],...pts[(i+1)%pts.length]); } } };
+    for(const f of faces){ put(K.clipHalf(f.p,h,0,1,0,-1),false,f); const w=K.clipHalf(f.p,h,0,1,0,1); put(K.clipHalf(w,0,vH,0,1,-1),true,f); put(K.clipHalf(w,0,vH,0,1,1),true,f); }
+    const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3)); g.setAttribute('color',new THREE.Float32BufferAttribute(col,3)); g.computeVertexNormals();
+    model.add(new THREE.Mesh(g,new THREE.MeshLambertMaterial({vertexColors:true,side:THREE.DoubleSide})));
+    const lg=new THREE.BufferGeometry(); lg.setAttribute('position',new THREE.Float32BufferAttribute(ln,3)); model.add(new THREE.LineSegments(lg,new THREE.LineBasicMaterial({color:0x26332e,transparent:true,opacity:.45})));
+    for(let i=0;i<D.clips;i++){ const c=new THREE.Mesh(new THREE.BoxGeometry(.03,.008,.004),new THREE.MeshLambertMaterial({color:0x8c98a4})); c.position.set(-(paper.L*.08+i*6)*1e-3-cx,-h*1e-3-cy+.003,0); model.add(c); }
+  }else if(D.kind==='ring'){
+    const r=pl.D/2, mk=(len,rad,color,x)=>{ const g=new THREE.CylinderGeometry(rad,rad,len,48,1,true); g.rotateZ(Math.PI/2); const m=new THREE.Mesh(g,new THREE.MeshLambertMaterial({color,side:THREE.DoubleSide})); m.position.x=x; model.add(m); };
+    mk(pl.c,r,cFront,-pl.c/2-pl.cg[0]); mk(pl.a,r+.0012,cBack.clone().lerp(new THREE.Color(0x333333),.15),-pl.a/2-pl.cg[0]);
+  }else{
+    const g=new THREE.IcosahedronGeometry(pl.d/2,3), p=g.attributes.position; let sd=11; const rnd=()=>{ sd=(sd*16807)%2147483647; return sd/2147483647; }; const seen=new Map();
+    for(let i=0;i<p.count;i++){ const key=p.getX(i).toFixed(4)+','+p.getY(i).toFixed(4)+','+p.getZ(i).toFixed(4); let k=seen.get(key); if(k==null){ k=.8+rnd()*.3; seen.set(key,k); } p.setXYZ(i,p.getX(i)*k,p.getY(i)*k,p.getZ(i)*k); }
+    g.computeVertexNormals(); model.add(new THREE.Mesh(g,new THREE.MeshLambertMaterial({color:cFront,flatShading:true})));
+  }
+}
+/* 画面のうち、操作盤に隠れていない部分の真ん中に機体が来るようにする */
+const view={fw:1,fh:1};
+function fit(){ const w=window.innerWidth, h=window.innerHeight, r=$('#stage').getBoundingClientRect(); renderer.setSize(w,h,false); camera.aspect=w/h; view.fw=r.width/w; view.fh=r.height/h;
+  camera.setViewOffset(w,h,(w-r.width)/2-r.left,(h-r.height)/2-r.top,w,h); camera.updateProjectionMatrix();
+  const fc=$('#foldcv'), d=Math.min(2,window.devicePixelRatio||1); fc.width=Math.max(10,Math.round(r.width*d)); fc.height=Math.max(10,Math.round(r.height*d)); drawFold(); }
+const orbit={yaw:-.9,pitch:.42,auto:true};
+{ const g=$('#grab'); let last=null;
+  g.addEventListener('pointerdown',e=>{ last=[e.clientX,e.clientY]; orbit.auto=false; try{ g.setPointerCapture(e.pointerId); }catch(_){} });
+  g.addEventListener('pointermove',e=>{ if(!last) return; orbit.yaw-=(e.clientX-last[0])*.008; orbit.pitch=clamp(orbit.pitch+(e.clientY-last[1])*.006,-1.2,1.3); last=[e.clientX,e.clientY]; });
+  ['pointerup','pointercancel'].forEach(n=>g.addEventListener(n,()=>{ last=null; })); }
+
+/* ================= 折る台（2D） ================= */
+const fc=$('#foldcv'), fx=fc.getContext('2d'); let FS={s:1,x0:0,y0:0}, drag=null, ghost=null, flashBad=0;
+function foldScale(){ const m=26*(fc.width/Math.max(1,fc.clientWidth)); const s=Math.max(.05,Math.min((fc.width-2*m)/paper.W,(fc.height-2*m)/paper.L)); FS={s,x0:fc.width/2,y0:(fc.height-paper.L*s)/2}; }
+const toPx=(u,v,side)=>[FS.x0+side*u*FS.s,FS.y0+v*FS.s];
+function drawFaces(list,alpha){ const [cf,cb]=COLORS[D.mat]; const sorted=list.slice().sort((a,b)=>a.z-b.z);
+  for(const f of sorted) for(const side of [1,-1]){ fx.beginPath(); f.p.forEach((q,i)=>{ const p=toPx(q[0],q[1],side); i?fx.lineTo(p[0],p[1]):fx.moveTo(p[0],p[1]); }); fx.closePath();
+    fx.globalAlpha=alpha; fx.shadowColor='rgba(0,0,0,.28)'; fx.shadowBlur=f.z?5*FS.s:9*FS.s; fx.shadowOffsetY=f.z?1.2*FS.s:3*FS.s; fx.fillStyle=f.flip?cb:cf; fx.fill();
+    fx.shadowColor='transparent'; fx.lineWidth=Math.max(1,.5*FS.s); fx.strokeStyle='rgba(22,36,31,.4)'; fx.stroke(); }
+  fx.globalAlpha=1; }
+function drawFold(){
+  if(!paper||!faces||fc.clientWidth<20) return; foldScale(); const w=fc.width, h=fc.height, s=FS.s;   // 隠れているときは描かない
+  fx.fillStyle='#1F6B52'; fx.fillRect(0,0,w,h);
+  fx.strokeStyle='#2E8266'; fx.lineWidth=1; fx.beginPath(); for(let x=FS.x0%(10*s);x<w;x+=10*s){ fx.moveTo(x,0); fx.lineTo(x,h); } for(let y=FS.y0%(10*s);y<h;y+=10*s){ fx.moveTo(0,y); fx.lineTo(w,y); } fx.stroke();
+  fx.strokeStyle='#3c9a7a'; fx.lineWidth=1.5; fx.beginPath(); for(let x=FS.x0%(50*s);x<w;x+=50*s){ fx.moveTo(x,0); fx.lineTo(x,h); } for(let y=FS.y0%(50*s);y<h;y+=50*s){ fx.moveTo(0,y); fx.lineTo(w,y); } fx.stroke();
+  drawFaces(ghost?ghost.faces:faces,1);
+  if(D.crush>0){ fx.save(); fx.beginPath(); for(const f of faces) for(const side of [1,-1]){ f.p.forEach((q,i)=>{ const p=toPx(q[0],q[1],side); i?fx.lineTo(p[0],p[1]):fx.moveTo(p[0],p[1]); }); fx.closePath(); } fx.clip();
+    let sd=97; const rnd=()=>{ sd=(sd*16807)%2147483647; return sd/2147483647; }, bd=K.bounds(faces); fx.lineWidth=Math.max(1,.5*s);
+    for(let i=0;i<D.crush*7;i++){ const u=(rnd()*2-1)*bd.umax, v=bd.vmin+rnd()*(bd.vmax-bd.vmin), a=rnd()*TAU, l=6+rnd()*26, p=toPx(u,v,1), q=toPx(u+Math.cos(a)*l,v+Math.sin(a)*l,1);
+      fx.strokeStyle=i%2?'rgba(22,36,31,.28)':'rgba(255,255,255,.7)'; fx.beginPath(); fx.moveTo(p[0],p[1]); fx.lineTo(q[0],q[1]); fx.stroke(); } fx.restore(); }
+  fx.setLineDash([6*s,5*s]); fx.strokeStyle='rgba(22,36,31,.45)'; fx.lineWidth=Math.max(1,.6*s); fx.beginPath(); fx.moveTo(FS.x0,FS.y0-8*s); fx.lineTo(FS.x0,FS.y0+paper.L*s+8*s); fx.stroke(); fx.setLineDash([]);
+  if(drag){ const a=toPx(drag.A[0],drag.A[1],drag.side), b=toPx(drag.B[0],drag.B[1],drag.side); const bad=!ghost;
+    if(ghost){ const L=ghost.line, t=[-L.ny,L.nx]; for(const side of [1,-1]){ const p=toPx(L.px-t[0]*400,L.py-t[1]*400,side), q=toPx(L.px+t[0]*400,L.py+t[1]*400,side); fx.setLineDash([8*s,6*s]); fx.strokeStyle='#F2B632'; fx.lineWidth=Math.max(2,1.1*s); fx.beginPath(); fx.moveTo(p[0],p[1]); fx.lineTo(q[0],q[1]); fx.stroke(); fx.setLineDash([]); } }
+    fx.strokeStyle=bad?'#E5482D':'#fff'; fx.lineWidth=Math.max(2,1*s); fx.beginPath(); fx.moveTo(a[0],a[1]); fx.lineTo(b[0],b[1]); fx.stroke();
+    for(const p of [a,b]){ fx.beginPath(); fx.arc(p[0],p[1],5*Math.max(1,s*.7),0,TAU); fx.fillStyle=bad?'#E5482D':'#F2B632'; fx.fill(); fx.strokeStyle='#16241f'; fx.lineWidth=2; fx.stroke(); } }
+  else { const vs=verts(); fx.fillStyle='rgba(242,182,50,.95)'; for(const q of vs) for(const side of (q[0]<.5?[1]:[1,-1])){ const p=toPx(q[0],q[1],side); fx.beginPath(); fx.arc(p[0],p[1],3.2*Math.max(1,s*.6),0,TAU); fx.fill(); } }
+}
+function verts(){ const out=[]; for(const f of faces) for(const q of f.p) if(!out.some(o=>Math.hypot(o[0]-q[0],o[1]-q[1])<1.5)) out.push(q); return out; }
+function evToPaper(e){ const r=fc.getBoundingClientRect(), k=fc.width/r.width, x=(e.clientX-r.left)*k, y=(e.clientY-r.top)*k, du=(x-FS.x0)/FS.s; return {u:Math.abs(du),v:(y-FS.y0)/FS.s,side:du<0?-1:1}; }
+function snap(pt,isB,A){ const tol=11*(fc.width/fc.clientWidth)/FS.s; let best=null,bd=tol;
+  for(const q of verts()){ const d=Math.hypot(q[0]-pt[0],q[1]-pt[1]); if(d<bd){ bd=d; best=[q[0],q[1]]; } }
+  if(best) return best; const o=[pt[0],pt[1]];
+  if(o[0]<tol*.8) o[0]=0; if(isB&&A){ if(Math.abs(o[1]-A[1])<tol*.6) o[1]=A[1]; if(Math.abs(o[0]-A[0])<tol*.6) o[0]=A[0]; } return o; }
+fc.addEventListener('pointerdown',e=>{ if(busy) return; e.preventDefault(); const p=evToPaper(e), A=snap([p.u,p.v]); if(!faces.some(f=>K.inside(f.p,A[0],A[1])||f.p.some(q=>Math.hypot(q[0]-A[0],q[1]-A[1])<1))) return;
+  try{ fc.setPointerCapture(e.pointerId); }catch(_){} drag={A,B:A,side:p.side,id:e.pointerId}; ghost=null; drawFold(); });
+fc.addEventListener('pointermove',e=>{ if(!drag||e.pointerId!==drag.id) return; const p=evToPaper(e); drag.B=snap([p.side===drag.side?p.u:0,p.v],true,drag.A); const r=K.fold(faces,drag.A,drag.B); ghost=r.err?null:r; drag.err=r.err; drawFold(); });
+function endDrag(e){ if(!drag||e.pointerId!==drag.id) return; const d=drag; drag=null;
+  // きれいに折れたら形が変わる。折れなかった手や、厚くなりすぎたあとの手は、しわとして数える。合わせて100回で玉になる
+  const over=faces.length>160||D.folds.length>=14, moved=Math.hypot(d.A[0]-d.B[0],d.A[1]-d.B[1])>=4;
+  if(moved&&ghost&&!over){ history.push(faces); faces=ghost.faces; D.folds.push([d.A,d.B]); D.preset=''; changed(); hint('折れました。つづけて折るか、「仕上げへ進む」を押します。'); }
+  else if(moved){ D.crush++; const n=D.folds.length+D.crush; if(n>=CRUSH) becomeBall(); else { changed();
+      const why=over?'紙が厚くて、もうきれいには折れません。':d.err==='center'?'中心線をこえる折り方はできません（左右の紙が重なります）。':'そこでは折れません。';
+      hint(n<25?why+`しわが付きました（折り ${n}回）`:n<60?`しわだらけになってきました（折り ${n}回）`:`もう紙というより、かたまりです（折り ${n}回）`,true); } }
+  ghost=null; drawFold(); }
+fc.addEventListener('pointerup',endDrag); fc.addEventListener('pointercancel',endDrag);
+fc.addEventListener('touchstart',e=>e.preventDefault(),{passive:false}); fc.addEventListener('contextmenu',e=>e.preventDefault());
+function becomeBall(){ D.crush=CRUSH-D.folds.length; D.kind='ball'; D.v=22; D.ang=32; syncInputs(); changed(); requestAnimationFrame(fit); toast('100回折って、くしゃくしゃ玉になりました'); }
+function freshPaper(){ D.folds=[]; D.crush=0; D.preset=''; if(D.kind==='ball'){ D.kind='plane'; D.v=6; D.ang=5; syncInputs(); } refold(); changed(); requestAnimationFrame(fit); hint('紙を広げました。角や辺をつまんで、持っていきたい所までドラッグします。'); }
+function hint(t,bad){ const h=$('#foldHint'); h.textContent=t; h.classList.toggle('bad',!!bad); }
+let busy=false;
+async function runPreset(p){ if(busy) return; busy=true; D.folds=[]; D.crush=0; refold(); D.preset=p.id; changed(); for(const f of p.folds){ await new Promise(r=>setTimeout(r,420)); const r=K.fold(faces,f[0],f[1]); if(r.err) break; history.push(faces); faces=r.faces; D.folds.push([f[0].slice(),f[1].slice()]); changed(); }
+  D.h=p.prm.h; D.dih=p.prm.dih; D.elev=p.prm.elev; D.clips=p.prm.clips; syncInputs(); changed(); hint(`お手本「${p.name}」を折りました。${p.note}。ここからさらに折ることもできます。`); busy=false; }
+
+/* ================= 画面の更新 ================= */
+const fmt=(x,n)=>Number(x).toFixed(n==null?1:n);
+function changed(){ buildAll(); buildMesh(); drawFold(); renderDiag(); renderLabels(); lbDirty=true; }
+function renderLabels(){
+  $('#paperCap').textContent=`${paper.size.W}×${paper.size.L}mm・1m²あたり${paper.gsm}g → 1枚 ${fmt(paper.mass*1000,2)}g`;
+  $('#foldN').textContent=D.folds.length?`折り ${D.folds.length+D.crush}回・重なり最大 ${Math.max(...faces.map(f=>f.z))+1}枚`:'';
+  $('#rhoCap').textContent=`空気の密度 ${fmt(env.rho,3)} kg/m³`;
+  const o=(id,t)=>{ $('#'+id).textContent=t; };
+  o('pHo',D.h+' mm'); o('pDiho',D.dih+'°'); o('pElevo',fmt(D.elev,1)+'°'); o('pClipo',D.clips?D.clips+' 個（'+fmt(D.clips*.5,1)+'g）':'なし');
+  o('ringAo',D.ringA+' mm'); o('ringNo',D.ringN+' 回'); o('tVo',fmt(D.v,1)+' m/s（時速'+Math.round(D.v*3.6)+'km）'); o('tAo',D.ang+'°'); o('tSo','毎秒 '+D.spin+' 回転');
+  o('eTo',D.temp+'℃'); o('eAlto',D.alt+' m'); o('eHeado',D.head>0?'向かい風 '+fmt(D.head,1)+' m/s':D.head<0?'追い風 '+fmt(-D.head,1)+' m/s':'無風');
+  o('eCrosso',D.cross>0?'左から '+fmt(D.cross,1)+' m/s':D.cross<0?'右から '+fmt(-D.cross,1)+' m/s':'なし'); o('eGusto',D.gust?'±'+fmt(D.gust,1)+' m/s':'なし');
+  $('#spinRow').hidden=D.kind!=='ring'; $('#tV').max=D.kind==='ball'?30:D.kind==='ring'?20:15;
+  $('#mkPlane').hidden=D.kind!=='plane'; $('#mkRing').hidden=D.kind!=='ring'; $('#mkBall').hidden=D.kind!=='ball'; $('#tnPlane').hidden=D.kind!=='plane';
+  app.dataset.kind=D.kind; $$('#kind button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.kind===D.kind))); $$('#tight button').forEach(b=>b.setAttribute('aria-pressed',String(+b.dataset.t===D.tight)));
+  let best={}; try{ best=JSON.parse(localStorage.getItem('khlab_best')||'{}'); }catch(e){}
+  const bk=best[D.kind+'@'+D.loc]; $('#bestCap').textContent=bk?`${LOC().name}での${KIND_NAME[D.kind]}の自己ベスト ${fmt(bk,1)}m`:'';
+}
+function renderDiag(){
+  const st=[], add=(k,v)=>st.push(`<div><span>${k}</span><b>${v}</b></div>`), a=an; let msg='', bad=false;
+  add('重さ',fmt(pl.m*1000,2)+' g');
+  if(a.state==='vacuum'){ msg=LOC().name+'には空気がないので、翼は何もしません。どんな形でも、投げた速さと角度だけで決まる放物線を描きます。'; }
+  else if(D.kind==='ball'){ add('直径',fmt(pl.d*100,1)+' cm'); add('終端速度',fmt(a.vterm,1)+' m/s'); msg='翼がないので、空気抵抗を受けながら放物線で飛びます。思いきり速く投げられるのが強みです。'; }
+  else { add('翼の面積',fmt(pl.S*1e4,0)+' cm²'); add(D.kind==='ring'?'直径':'翼の幅',fmt(pl.b*100,1)+' cm'); add('縦横比',fmt(pl.AR,2)); add('翼面荷重',fmt(a.load*10,1)+' g/dm²');
+    add('重心（前から）',fmt(pl.cgPct,0)+' %'); add('安定の余裕',(a.sm>=0?'+':'')+fmt(a.sm,1)+' %');
+    if(D.kind==='ring'){ add('弦の長さ',fmt(pl.c*100,1)+' cm'); msg=a.sm>-8?'回転をかけて投げると、こまと同じ理由で向きが保たれます。迎角がついたぶんだけ揚力が出ます。':'前の縁がまだ軽く、ふらつきやすい形です。折り返す回数を増やすと落ち着きます。'; bad=a.sm<=-8; }
+    else if(a.zerog){ add('釣り合う迎角',fmt(a.trim,1)+'°'); msg='無重力では落ちないので、揚力がそのまま機体を曲げます。反り上げがあると宙返りを続け、反り上げ 0°ならまっすぐ進みます。'; }
+    else if(a.trim!=null&&a.state!=='dive'){ add('釣り合う迎角',fmt(a.trim,1)+'°'); add('滑空比',fmt(a.LD,2)); add('滑る速さ',fmt(a.V,1)+' m/s'); add('沈む速さ',fmt(a.sink,2)+' m/s'); add('レイノルズ数',fmt(env.rho*a.V*pl.mac/env.mu/1000,1)+' 千');
+      if(a.state==='stall'){ msg='機首が上がりすぎて、失速しながら落ちます。後ろの縁の反り上げを減らすか、クリップで先を重くします。'; bad=true; }
+      else if(a.sm<1){ msg=`秒速 ${fmt(a.V,1)}m で釣り合いますが、重心が後ろ寄りで向きが乱れやすい形です。先をもう一度折るか、クリップを付けます。`; bad=true; }
+      else msg=`秒速 ${fmt(a.V,1)}m でまっすぐ滑ります（1m 下がる間に ${fmt(a.LD,1)}m 進む）。この速さでそっと押し出すのがコツ。速く投げるほど機首が上がります。`; }
+    else if(a.state==='tailheavy'){ msg='重心が後ろすぎて、機首が上がってひっくり返ります。先をもう一度折るか、クリップを付けます。'; bad=true; }
+    else { msg='このままだと機首が下がり、矢のように落ちます。後ろの縁を少し反り上げると、滑空するようになります。'; bad=true; } }
+  $('#stats').innerHTML=st.join(''); const v=$('#verdict'); v.textContent=msg; v.classList.toggle('bad',bad); drawTop();
+}
+function drawTop(){ const c=$('#topview'), g=c.getContext('2d'), W=c.width, H=c.height; g.clearRect(0,0,W,H); g.fillStyle='#fff'; g.fillRect(0,0,W,H);
+  if(D.kind!=='plane'){ $('#topCap').textContent=''; c.style.display='none'; return; } c.style.display='block';
+  const bd=pl.bd, L=bd.vmax-bd.vmin, s=Math.min((W-60)/L,(H-30)/(2*bd.umax)), x0=(W-L*s)/2, yc=H/2, X=v=>x0+(v-bd.vmin)*s, Y=(u,side)=>yc+side*u*s;
+  g.fillStyle='#dfe8e3'; g.strokeStyle='#16241f'; g.lineWidth=1.5;
+  for(const f of faces.slice().sort((a,b)=>a.z-b.z)) for(const side of [1,-1]){ g.beginPath(); f.p.forEach((q,i)=>i?g.lineTo(X(q[1]),Y(q[0],side)):g.moveTo(X(q[1]),Y(q[0],side))); g.closePath(); g.fill(); g.stroke(); }
+  g.fillStyle='rgba(31,107,82,.28)'; g.fillRect(X(bd.vmin),yc-pl.h*s,L*s,2*pl.h*s);
+  g.fillStyle='rgba(229,72,45,.3)'; g.fillRect(X(pl.vH),yc-bd.umax*s,(bd.vmax-pl.vH)*s,2*bd.umax*s);
+  const xcg=X(bd.vmin+pl.cgPct/100*L), xnp=xcg+an.sm/100*pl.mac*1000*s;
+  g.strokeStyle='#1F6B52'; g.lineWidth=3; g.beginPath(); g.moveTo(xnp,yc-22); g.lineTo(xnp,yc+22); g.stroke(); g.fillStyle='#1F6B52'; g.font='600 20px sans-serif'; g.textAlign='center'; g.fillText('中立点',xnp,yc+44);
+  g.beginPath(); g.arc(xcg,yc,9,0,TAU); g.fillStyle='#E5482D'; g.fill(); g.strokeStyle='#fff'; g.lineWidth=2; g.stroke(); g.fillStyle='#E5482D'; g.fillText('重心',xcg,yc-18);
+  g.fillStyle='#5b6b65'; g.font='500 18px sans-serif'; g.textAlign='left'; g.fillText('← 前',8,22);
+  $('#topCap').textContent='上から見た形。赤い点が重心、緑の線が中立点。重心が中立点より前にあると、機首を戻す力がはたらきます。緑の帯は胴体、赤い帯は反り上げる縁。';
+}
+function syncInputs(){ const set=(id,v)=>{ $('#'+id).value=v; }; set('loc',D.loc); set('mat',D.mat); set('size',D.size); set('pH',D.h); set('pDih',D.dih); set('pElev',D.elev); set('pClip',D.clips); set('ringA',D.ringA); set('ringN',D.ringN);
+  set('tV',D.v); set('tA',D.ang); set('tS',D.spin); set('eT',D.temp); set('eAlt',D.alt); set('eHead',D.head); set('eCross',D.cross); set('eGust',D.gust); }
+function setPaper(){ paper=K.makePaper(D.size,D.mat); $('#pH').max=Math.round(paper.pw*.4); D.h=clamp(D.h,6,+$('#pH').max);
+  $('#presets').innerHTML=''; for(const p of K.presets(paper)){ const b=document.createElement('button'); b.className='b'; b.textContent='お手本：'+p.name; b.addEventListener('click',()=>runPreset(p)); $('#presets').appendChild(b); } }
+function setTab(t){ if(t==='fly'&&flight&&!flight.done) return; tab=t; app.dataset.tab=t; $$('.tabs button').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.tab===t)));
+  const sc=t==='fly'?field:hangar; if(model.parent!==sc){ sc.add(model); } if(t!=='fly'){ model.position.set(0,0,0); model.quaternion.set(0,0,0,1); model.scale.setScalar(1); orbit.auto=true; }
+  else resetFlightView(); $('#panel').scrollTop=0; requestAnimationFrame(fit); }
+
+/* ================= 飛行 ================= */
+let flight=null; const camPos=new V3(), camTgt=new V3(), tmp=new V3(), dirH=new V3(1,0,0);
+function resetFlightView(){ const H=LOC().h; flight=null; trailGeo.setDrawRange(0,0); $('#result').classList.remove('on'); model.position.set(0,H,0); model.quaternion.setFromAxisAngle(new V3(0,0,1),D.ang*DEG); model.scale.setScalar(1); dirH.set(1,0,0);
+  camPos.set(-1.15,H+.38,.95); camTgt.set(.5,H,0); hudSet(0,H,0,0,0); windVis(); shadow.position.set(0,.02,0); }
+function windVis(){ const w=[0,0,0]; env.windAt([3,3,-3.5],0,w); const sp=Math.hypot(w[0],w[2]); const c=sock.userData.c; c.rotation.set(0,0,0); c.rotation.y=Math.atan2(-w[2],w[0]); c.rotation.z=-clamp(1.45-sp*.5,0,1.45); }
+function hudSet(d,alt,v,aoa,t){ $('#hDist').textContent=fmt(d,1); $('#hAlt').textContent=fmt(Math.max(0,alt),1); $('#hSpd').textContent=fmt(v,1); $('#hAoa').textContent=Math.round(aoa); $('#hTime').textContent=fmt(t,1); }
+function throwIt(){ if(flight&&!flight.done) return; buildAll(); resetFlightView();
+  const L=LOC(), st=K.launch(D.v,D.ang,L.h,{roll:.02,spin:D.kind==='ring'?D.spin:0}); flight={st,n:0,path:[[0,L.h]],done:false,after:0,acc:0,vsum:0,vn:0,dtr:L.h>20?.1:.02,tmax:L.tmax||300,iss:L.id==='iss'}; $('#throw').disabled=true; $('#panel').scrollTop=0; }
+function simulate(dt){ const f=flight, st=f.st; if(!f.done){ f.acc+=dt*speedMul; const h=.0005; let n=0; while(f.acc>=h&&n<1300&&!st.landed&&st.t<f.tmax){ K.step(st,pl,h,env); f.acc-=h; n++;
+      if(f.iss&&(st.p[0]>10.9||st.p[0]<-.05||Math.abs(st.p[2])>1.95||st.p[1]<.05||st.p[1]>3.95)){ st.landed=true; f.wall=true; } } if(n>=1300) f.acc=0;
+    f.vsum+=st.speed; f.vn++;
+    if(f.n<3000&&(st.t>f.n*f.dtr)){ trailPos.set([st.p[0],st.p[1],st.p[2]],f.n*3); f.n++; trailGeo.setDrawRange(0,f.n); trailGeo.attributes.position.needsUpdate=true; f.path.push([Math.hypot(st.p[0],st.p[2])*(st.p[0]<0?-1:1),st.p[1]]); }
+    if(st.landed||st.t>=f.tmax){ f.done=true; finish(); } }
+  else f.after+=dt;
+  model.position.set(st.p[0],st.p[1],st.p[2]); model.quaternion.set(st.q[1],st.q[2],st.q[3],st.q[0]); shadow.position.set(st.p[0],.02,st.p[2]);
+  const vh=Math.hypot(st.v[0],st.v[2]); if(vh>.4&&!f.done){ tmp.set(st.v[0]/vh,0,st.v[2]/vh); dirH.lerp(tmp,Math.min(1,dt*2.5)).normalize(); }
+  const far=D.kind==='ball'?1.9:1.2, ang=f.done?f.after*.25:0, cx=Math.cos(ang), sx=Math.sin(ang);
+  tmp.set(st.p[0]-(dirH.x*cx-dirH.z*sx)*far+dirH.z*.6, Math.max(.25,st.p[1]+.4), st.p[2]-(dirH.z*cx+dirH.x*sx)*far-dirH.x*.6);
+  camPos.lerp(tmp,Math.min(1,dt*7)); camTgt.lerp(model.position,Math.min(1,dt*12));
+  hudSet(Math.hypot(st.p[0],st.p[2]),st.p[1],st.speed,st.alpha/DEG,st.t); lbAlpha=st.alpha; }
+function finish(){ const f=flight, st=f.st, dist=Math.hypot(st.p[0],st.p[2]), L=LOC(); $('#throw').disabled=false;
+  const R={dist,time:st.t,hmax:st.hmax,vavg:f.vsum/Math.max(1,f.vn),path:f.path,kind:D.kind,loc:L,name:D.kind==='plane'?(K.presets(paper).find(p=>p.id===D.preset)||{name:'自分で折った機体'}).name:KIND_NAME[D.kind]}; f.R=R;
+  $('#rDist').textContent=fmt(dist,1); const pct=dist/REC_DIST*100;
+  $('#rLine').textContent=`${L.name}から。滞空 ${fmt(st.t,2)}秒・最高 ${fmt(st.hmax,1)}m・平均 秒速${fmt(R.vavg,1)}m。`+(L.id==='yard'?`世界記録 ${REC_DIST}m の ${fmt(pct,pct<10?1:0)}%。`:'')+(f.wall?' 壁に当たりました。':L.id==='iss'?' 20秒で打ち切りました。':st.p[0]<-.5?' 後ろへ戻ってしまいました。':st.hmax>L.h+2.5&&dist<6?' 上がりすぎて失速しました。速さか反り上げを減らします。':'');
+  $('#result').classList.add('on'); $('#panel').scrollTop=0; drawChart(R); $('#shareX').href=xUrl(R);
+  try{ const b=JSON.parse(localStorage.getItem('khlab_best')||'{}'), k=D.kind+'@'+D.loc; if(!(b[k]>=dist)){ b[k]=Math.round(dist*10)/10; localStorage.setItem('khlab_best',JSON.stringify(b)); } }catch(e){} renderLabels(); }
+function drawChart(R,g,x,y,W,H){ const own=!g; if(own){ const c=$('#chart'); g=c.getContext('2d'); x=0; y=0; W=c.width; H=c.height; g.clearRect(0,0,W,H); }
+  const xs=R.path.map(p=>p[0]), xmin=Math.min(0,...xs), xmax=Math.max(5,...xs), ymax=Math.max(3,R.hmax*1.1), pad=26, sx=(W-2*pad)/(xmax-xmin), sy=(H-2*pad)/ymax, s=Math.min(sx,sy*3), X=v=>x+pad+(v-xmin)*s, Y=v=>y+H-pad-v*Math.min(sy,s);
+  g.strokeStyle='#c9d6cf'; g.lineWidth=1; g.font='500 16px "IBM Plex Mono",monospace'; g.fillStyle='#5b6b65'; g.textAlign='center';
+  const stp=xmax-xmin>400?100:xmax-xmin>150?50:xmax-xmin>50?10:5; if(own) $('#chartCap').textContent=`横から見た飛び方（1目盛り ${stp}m）`;
+  for(let v=Math.ceil(xmin/stp)*stp;v<=xmax;v+=stp){ g.beginPath(); g.moveTo(X(v),y+pad*.5); g.lineTo(X(v),y+H-pad); g.stroke(); if(v%(stp*2)===0||xmax<25) g.fillText(v,X(v),y+H-6); }
+  g.strokeStyle='#16241f'; g.lineWidth=2; g.beginPath(); g.moveTo(X(xmin),Y(0)); g.lineTo(X(xmax),Y(0)); g.stroke();
+  g.strokeStyle='#E5482D'; g.lineWidth=3; g.lineJoin='round'; g.beginPath(); R.path.forEach((p,i)=>i?g.lineTo(X(p[0]),Y(p[1])):g.moveTo(X(p[0]),Y(p[1]))); g.stroke();
+  const l=R.path[R.path.length-1]; g.fillStyle='#E5482D'; g.beginPath(); g.arc(X(l[0]),Y(Math.max(0,l[1])),5,0,TAU); g.fill(); }
+
+/* ================= 共有 ================= */
+const siteUrl=()=>location.protocol.startsWith('http')?location.origin+location.pathname:'';
+function condText(){ const w=[]; if(D.head) w.push(D.head>0?`向かい風${fmt(D.head,1)}m`:`追い風${fmt(-D.head,1)}m`); if(D.cross) w.push(`横風${fmt(Math.abs(D.cross),1)}m`); if(D.gust) w.push('突風あり'); const L=LOC(); return `${L.name}／${paper.mat.name}・${paper.size.name}`+(L.g==null?`／${D.temp}℃／${w.length?w.join('・'):'無風'}`:''); }
+function shareText(R){ return `✈️紙飛行機ラボ\n${R.name}が ${fmt(R.dist,1)}m 飛んだ（滞空 ${fmt(R.time,1)}秒）\n${condText()}\n`+(D.loc==='yard'?`世界記録 ${REC_DIST}m の ${fmt(R.dist/REC_DIST*100,R.dist<9?1:0)}%\n`:'')+`${TAG}`; }
+const xUrl=R=>'https://x.com/intent/post?text='+encodeURIComponent(shareText(R))+(siteUrl()?'&url='+encodeURIComponent(siteUrl()+'#d='+encode()):'');
+function toast(t){ const el=$('#toast'); el.textContent=t; el.classList.add('on'); clearTimeout(toast.t); toast.t=setTimeout(()=>el.classList.remove('on'),2400); }
+function makeCard(R){ const c=document.createElement('canvas'); c.width=1200; c.height=675; const g=c.getContext('2d');
+  g.fillStyle='#1F6B52'; g.fillRect(0,0,1200,675); g.strokeStyle='#2E8266'; g.lineWidth=1; g.beginPath(); for(let i=0;i<=1200;i+=25){ g.moveTo(i,0); g.lineTo(i,675); } for(let i=0;i<=675;i+=25){ g.moveTo(0,i); g.lineTo(1200,i); } g.stroke();
+  g.save(); g.translate(600,338); g.rotate(-.012); g.translate(-600,-338); g.shadowColor='rgba(0,0,0,.4)'; g.shadowBlur=30; g.shadowOffsetY=12; g.fillStyle='#FBFAF5'; g.fillRect(50,44,1100,588); g.shadowColor='transparent';
+  g.fillStyle='#16241f'; g.textBaseline='alphabetic'; g.textAlign='left'; g.font='600 34px "Klee One",sans-serif'; g.fillText('紙飛行機ラボ　飛行の記録',92,104);
+  g.font='500 22px "Zen Kaku Gothic New",sans-serif'; g.fillStyle='#44544e'; g.fillText(R.name+'｜'+condText(),92,142);
+  g.fillStyle='#E5482D'; g.font='600 170px "IBM Plex Mono",monospace'; const t=fmt(R.dist,1); g.fillText(t,84,318); const tw=g.measureText(t).width; g.fillStyle='#16241f'; g.font='600 52px "IBM Plex Mono",monospace'; g.fillText('m',96+tw,316);
+  g.font='500 24px "Zen Kaku Gothic New",sans-serif'; [['滞空',fmt(R.time,2)+' 秒'],['最高の高さ',fmt(R.hmax,1)+' m'],['平均の速さ','秒速 '+fmt(R.vavg,1)+' m']].concat(D.loc==='yard'?[['世界記録比',fmt(R.dist/REC_DIST*100,R.dist<9?1:0)+' %']]:[]).forEach((r,i)=>{ const yy=372+i*40; g.fillStyle='#5b6b65'; g.fillText(r[0],92,yy); g.fillStyle='#16241f'; g.font='600 26px "IBM Plex Mono",monospace'; g.fillText(r[1],250,yy+1); g.font='500 24px "Zen Kaku Gothic New",sans-serif'; });
+  g.strokeStyle='#16241f'; g.lineWidth=2; g.strokeRect(560,180,550,330); drawChart(R,g,560,180,550,330); g.fillStyle='#5b6b65'; g.font='500 18px "Zen Kaku Gothic New",sans-serif'; g.fillText('横から見た飛び方（目盛りは m）',560,540);
+  g.fillStyle='#16241f'; g.font='600 26px "Klee One",sans-serif'; g.fillText(TAG,92,596); if(siteUrl()){ g.textAlign='right'; g.font='500 19px "IBM Plex Mono",monospace'; g.fillText(siteUrl().replace(/^https?:\/\//,''),1108,596); }
+  g.restore(); return new Promise(res=>c.toBlob(res,'image/png')); }
+async function shareImg(){ if(!flight||!flight.R) return; const R=flight.R, blob=await makeCard(R); if(!blob){ toast('画像を作れませんでした'); return; }
+  const file=new File([blob],'kamihikoki-lab.png',{type:'image/png'}), text=shareText(R)+(siteUrl()?'\n'+siteUrl():'');
+  const save=()=>{ const a=document.createElement('a'); a.href=URL.createObjectURL(file); a.download=file.name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),4000); toast('記録の画像を保存しました'); };
+  if(matchMedia('(pointer:coarse)').matches&&navigator.canShare&&navigator.canShare({files:[file]})) navigator.share({files:[file],text}).catch(e=>{ if(e&&e.name!=='AbortError') save(); }); else save(); }
+function shareUrl(){ const u=(siteUrl()||location.href.split('#')[0])+'#d='+encode(); const done=()=>toast('この機体のURLをコピーしました');
+  if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(u).then(done,()=>{ location.hash='d='+encode(); toast('アドレス欄のURLをコピーしてください'); }); else { location.hash='d='+encode(); toast('アドレス欄のURLをコピーしてください'); } }
+
+/* ================= 風洞：翼の断面まわりの流れ（格子ボルツマン法・2次元） ================= */
+const LB={nx:132,ny:56,u0:.085,nu:.022}; let lbAlpha=0, lbShown=1e9, lbDirty=true;
+const CX=[0,1,0,-1,0,1,-1,-1,1], CY=[0,0,1,0,-1,1,1,-1,-1], WT=[4/9,1/9,1/9,1/9,1/9,1/36,1/36,1/36,1/36], OPP=[0,3,4,1,2,7,8,5,6];
+function lbInit(){ const n=LB.nx*LB.ny; LB.f=new Float32Array(9*n); LB.g=new Float32Array(9*n); LB.solid=new Uint8Array(n); LB.ux=new Float32Array(n); LB.uy=new Float32Array(n);
+  LB.ctx=$('#lb').getContext('2d'); LB.img=LB.ctx.createImageData(LB.nx,LB.ny); LB.eq=new Float32Array(9); for(let i=0;i<9;i++){ const cu=3*CX[i]*LB.u0; LB.eq[i]=WT[i]*(1+cu+.5*cu*cu-1.5*LB.u0*LB.u0); }
+  for(let c=0;c<n;c++) for(let i=0;i<9;i++) LB.f[c*9+i]=LB.eq[i]; }
+function lbPlate(al){ const {nx,ny,solid,f,eq}=LB, was=solid.slice(); solid.fill(0); const Lc=38, E=D.kind==='plane'?.12:0, de=D.elev*DEG, x0=nx*.27, y0=ny*.5-Math.sin(al)*Lc*.5;
+  for(let t=0;t<=1;t+=1/(Lc*3)){ let x,y; if(t<=1-E){ x=x0+Math.cos(al)*Lc*t; y=y0+Math.sin(al)*Lc*t; } else { const b=1-E; x=x0+Math.cos(al)*Lc*b+Math.cos(al-de)*Lc*(t-b); y=y0+Math.sin(al)*Lc*b+Math.sin(al-de)*Lc*(t-b); }
+    const xi=Math.round(x), yi=Math.round(y); if(xi>1&&xi<nx-2&&yi>1&&yi<ny-2){ solid[yi*nx+xi]=1; solid[(yi+1)*nx+xi]=1; } }
+  for(let c=0;c<solid.length;c++) if(was[c]&&!solid[c]) for(let i=0;i<9;i++) f[c*9+i]=eq[i]; }
+function lbStep(){ const {nx,ny,f,g,solid,ux,uy,eq}=LB, om=1/(3*LB.nu+.5);
+  for(let y=0;y<ny;y++) for(let x=0;x<nx;x++){ const c=y*nx+x, b=c*9; if(solid[c]) continue;
+    if(x===0||y===0||y===ny-1){ for(let i=0;i<9;i++) g[b+i]=eq[i]; ux[c]=LB.u0; uy[c]=0; continue; }
+    let r=0,vx=0,vy=0; for(let i=0;i<9;i++){ const v=f[b+i]; r+=v; vx+=v*CX[i]; vy+=v*CY[i]; } vx/=r; vy/=r; ux[c]=vx; uy[c]=vy; const u2=1.5*(vx*vx+vy*vy);
+    for(let i=0;i<9;i++){ const cu=3*(CX[i]*vx+CY[i]*vy); g[b+i]=f[b+i]+om*(WT[i]*r*(1+cu+.5*cu*cu-u2)-f[b+i]); } }
+  for(let y=0;y<ny;y++) for(let x=0;x<nx;x++){ const c=y*nx+x, b=c*9; if(solid[c]) continue;
+    for(let i=0;i<9;i++){ let xs=x-CX[i], ys=y-CY[i]; if(xs<0||ys<0||ys>=ny){ f[b+i]=eq[i]; continue; } if(xs>=nx) xs=nx-1; const cs=ys*nx+xs; f[b+i]=solid[cs]?g[b+OPP[i]]:g[cs*9+i]; } }
+  if(!(f[9*(nx*20+60)]===f[9*(nx*20+60)])) lbInit(); }
+function lbDraw(){ const {nx,ny,ux,uy,solid,img}=LB, d=img.data;
+  for(let y=1;y<ny-1;y++) for(let x=1;x<nx-1;x++){ const c=y*nx+x, p=c*4; if(solid[c]){ d[p]=251; d[p+1]=250; d[p+2]=245; d[p+3]=255; continue; }
+    const w=(uy[c+1]-uy[c-1])-(ux[c+nx]-ux[c-nx]), sp=Math.hypot(ux[c],uy[c])/LB.u0, k=clamp(Math.abs(w)*38,0,1), base=18+sp*34;
+    d[p]=base+(w>0?k*225:k*10); d[p+1]=base+28+(w>0?k*110:k*150); d[p+2]=base+22+(w>0?0:k*215); d[p+3]=255; }
+  LB.ctx.putImageData(img,0,0); }
+function lbTick(){ const none=env.rho<1e-6; $('.lb').style.visibility=none?'hidden':'visible'; if(none||D.kind!=='plane'||(tab!=='fly'&&tab!=='tune')) return; const target=tab==='fly'&&flight?clamp(lbAlpha,-.35,1.2):((an&&an.trim!=null?an.trim:6)*DEG);
+  if(lbDirty||Math.abs(target-lbShown)>.012){ lbShown=target; lbDirty=false; lbPlate(target); $('#lbCap').textContent=`翼の断面まわりの空気の流れ（迎角 ${Math.round(target/DEG)}°）。色はうずの向きと強さ`; }
+  for(let i=0;i<5;i++) lbStep(); lbDraw(); }
+
+/* ================= 入力のつなぎ込み ================= */
+function fillSel(id,list,label){ const s=$('#'+id); for(const o of list){ const op=document.createElement('option'); op.value=o.id; op.textContent=label(o); s.appendChild(op); } }
+let speedMul=1; $('#ff').addEventListener('click',()=>{ speedMul=speedMul===1?4:speedMul===4?16:1; $('#ff').textContent='早送り ×'+speedMul; });
+fillSel('loc',LOCS,l=>l.name+(l.h>2?`（高さ ${l.h}m）`:''));
+$('#loc').addEventListener('change',e=>{ D.loc=e.target.value; D.alt=LOC().alt||0; syncInputs(); changed(); applyLoc(); resetFlightView(); });
+fillSel('mat',K.MATERIALS,m=>`${m.name}（${m.gsm}g/m²）`); fillSel('size',K.SIZES,s=>`${s.name}（${s.W}×${s.L}）`);
+$('#mat').addEventListener('change',e=>{ D.mat=e.target.value; setPaper(); refold(); changed(); });
+$('#size').addEventListener('change',e=>{ D.size=e.target.value; setPaper(); D.folds=[]; D.crush=0; D.preset=''; if(D.kind==='ball') D.kind='plane'; refold(); changed(); hint('紙の大きさを変えたので、広げた状態に戻しました。'); });
+$$('#kind button').forEach(b=>b.addEventListener('click',()=>{ if(D.kind==='ball'){ D.crush=0; D.folds=[]; refold(); } D.kind=b.dataset.kind; if(D.kind==='ring'){ D.v=13; D.ang=8; } else { D.v=6; D.ang=5; } syncInputs(); changed(); requestAnimationFrame(fit); }));
+$('#reset2').addEventListener('click',freshPaper);
+$$('#tight button').forEach(b=>b.addEventListener('click',()=>{ D.tight=+b.dataset.t; changed(); }));
+for(const [id,key] of [['pH','h'],['pDih','dih'],['pElev','elev'],['pClip','clips'],['ringA','ringA'],['ringN','ringN'],['tV','v'],['tA','ang'],['tS','spin'],['eT','temp'],['eAlt','alt'],['eHead','head'],['eCross','cross'],['eGust','gust']])
+  $('#'+id).addEventListener('input',e=>{ D[key]=+e.target.value; if(['v','ang','spin'].includes(key)){ renderLabels(); if(tab==='fly'&&(!flight||flight.done)) model.quaternion.setFromAxisAngle(new V3(0,0,1),D.ang*DEG); } else { changed(); if(tab==='fly') windVis(); } });
+$('#undo').addEventListener('click',()=>{ if(busy) return; if(D.crush>0){ D.crush--; changed(); hint('1手もどしました。'); return; } if(!history.length) return; faces=history.pop(); D.folds.pop(); D.preset=''; changed(); hint('1手もどしました。'); });
+$('#reset').addEventListener('click',()=>{ if(busy) return; freshPaper(); });
+$$('.tabs button').forEach(b=>b.addEventListener('click',()=>setTab(b.dataset.tab)));
+$$('[data-go]').forEach(b=>b.addEventListener('click',()=>setTab(b.dataset.go)));
+$('#throw').addEventListener('click',throwIt); $('#shareImg').addEventListener('click',shareImg); $('#shareUrl').addEventListener('click',shareUrl);
+addEventListener('resize',fit); addEventListener('orientationchange',()=>setTimeout(fit,250));
+
+/* ================= 毎フレーム ================= */
+let last=0, time=0;
+function tick(dt){ time+=dt;
+  if(tab==='fly'){ if(flight) simulate(dt); else { const H=LOC().h; camPos.lerp(tmp.set(-1.15,H+.38,.95),Math.min(1,dt*4)); camTgt.lerp(tmp.set(.5,H,0),Math.min(1,dt*4)); }
+    camera.position.copy(camPos); camera.up.set(0,1,0); camera.lookAt(camTgt); camera.fov=46; }
+  else { if(orbit.auto) orbit.yaw+=dt*.25; const M=Math.max(pl.len,pl.b||0,pl.d||0)*(D.kind==='plane'?1.25:2.3), r=Math.max(M/(.728*camera.aspect*view.fw),.62*M/(.728*view.fh)); camera.position.set(Math.sin(orbit.yaw)*Math.cos(orbit.pitch)*r,Math.sin(orbit.pitch)*r,Math.cos(orbit.yaw)*Math.cos(orbit.pitch)*r);
+    camera.up.set(0,1,0); camera.lookAt(D.kind==='ball'?0:-pl.len*.5-pl.cg[0],0,0); camera.fov=40; if(D.kind==='ring') model.rotation.x+=dt*1.5; else if(D.kind==='ball') model.rotation.y+=dt*.6; }
+  camera.updateProjectionMatrix(); lbTick();
+  if(!(tab==='make'&&D.kind==='plane')) renderer.render(tab==='fly'?field:hangar,camera); }
+function frame(now){ const dt=Math.min(.05,(now-last)/1000||0); last=now; tick(dt); requestAnimationFrame(frame); }
+
+/* ================= 起動 ================= */
+if(location.hash.startsWith('#d=')) decode(location.hash.slice(3));
+setPaper(); refold(); syncInputs(); lbInit(); buildAll(); buildMesh(); renderDiag(); renderLabels(); applyLoc(); fit(); setTab('make');
+if(document.fonts&&document.fonts.ready) document.fonts.ready.then(()=>{ drawFold(); });
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
