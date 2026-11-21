@@ -378,7 +378,7 @@ details.more[open] summary{margin-bottom:6px}
           <details class="more" id="rpMore">
             <summary>くわしく見直す（時刻・見る位置・矢印の意味）</summary>
           <input class="rpt" id="rpT" type="range" min="0" max="1000" step="1" value="1000" aria-label="見直す時刻">
-          <div class="rprow"><span class="rpl">見る位置</span><div class="seg" id="camMode"><button data-c="back">後ろ</button><button data-c="side">横</button><button data-c="top">上</button></div></div>
+          <div class="rprow"><span class="rpl">見る位置</span><div class="seg" id="camMode"><button data-c="back">後ろ</button><button data-c="side">斜め</button><button data-c="top">上</button></div></div>
           <p class="cap">矢印：緑＝揚力、橙＝抗力、灰＝重さ（重さと同じ力で 16cm）。翼の上の細い緑の線＝翼の帯ごとの揚力（左右の差や、しなりで減る所が見えます）。まわりの線＝機体から見た空気の流れ（風洞の煙と同じ見え方）。静かな空気は水色、翼に押しのけられたり突風で動いた空気ほど橙。翼の後ろへの吹きおろしと、翼の先のうずが見えます（揚力線理論で計算）。翼のしなりは形そのものに出ます。</p>
           </details>
         </div>
@@ -498,7 +498,7 @@ const camera=new THREE.PerspectiveCamera(42,1,.02,4000);
 let groundMesh, treeMesh, platform, issBox; const lineGroup=new THREE.Group();
 const hangar=new THREE.Scene(), field=new THREE.Scene();
 hangar.background=new THREE.Color(0x1F6B52); field.background=new THREE.Color(0xbfe0f4); field.fog=new THREE.Fog(0xcfe7f5,60,420);
-for(const sc of [hangar,field]){ sc.add(new THREE.HemisphereLight(0xffffff,0x6f8f7c,.78)); const d=new THREE.DirectionalLight(0xffffff,.7); d.position.set(-3,6,4); sc.add(d); }
+for(const sc of [hangar,field]){ sc.add(new THREE.HemisphereLight(0xffffff,0x6f8f7c,.78)); const d=new THREE.DirectionalLight(0xffffff,.7); d.position.set(-3,6,4); sc.add(d); sc.children.forEach(o=>{ if(o.isLight) o.layers.enable(1); }); }
 function gridTex(bg,line,line2,n){ const c=document.createElement('canvas'); c.width=c.height=256; const g=c.getContext('2d'); g.fillStyle=bg; g.fillRect(0,0,256,256);
   g.strokeStyle=line; g.lineWidth=1; for(let i=0;i<=n;i++){ const p=i*256/n; g.beginPath(); g.moveTo(p,0); g.lineTo(p,256); g.moveTo(0,p); g.lineTo(256,p); g.stroke(); }
   g.strokeStyle=line2; g.lineWidth=3; g.strokeRect(0,0,256,256); const t=new THREE.CanvasTexture(c); t.wrapS=t.wrapT=THREE.RepeatWrapping; t.anisotropy=renderer.capabilities.getMaxAnisotropy(); return t; }
@@ -815,7 +815,7 @@ function camFollow(dt){ const side=camMode!=='back', mp=side?.12:.35, mt=side?.0
   camTgt.lerp(model.position,Math.min(1,dt*12)); camLag.subVectors(camTgt,model.position); if(camLag.length()>mt) camTgt.copy(model.position).add(camLag.setLength(mt)); }
 function camAt(p,ang){ const far=D.kind==='ball'?1.9:1.2, cx=Math.cos(ang||0), sx=Math.sin(ang||0);
   const near=app.classList.contains('dock');                                         // 電話の縦長の画面では、横・上から見るときに近づく（機体が小さくなりすぎる）
-  if(camMode==='side'){ const sd=near?1.6:2.4; tmp.set(p[0]+dirH.z*sd, Math.max(.25,p[1]+.25), p[2]-dirH.x*sd); }
+  if(camMode==='side'){ const sd=near?1.5:2.2, bk=sd*.38; tmp.set(p[0]+dirH.z*sd-dirH.x*bk, Math.max(.25,p[1]+sd*.42), p[2]-dirH.x*sd-dirH.z*bk); }   // 真横だと翼が線1本に見えるので、少し上・後ろ寄りの斜めから
   else if(camMode==='top') tmp.set(p[0]-dirH.x*.35, p[1]+(near?2.2:3.2), p[2]-dirH.z*.35);
   else tmp.set(p[0]-(dirH.x*cx-dirH.z*sx)*far, Math.max(.25,p[1]+.4), p[2]-(dirH.z*cx+dirH.x*sx)*far);   // 真後ろから追う（前は左へ 0.6m ずらしていて、まっすぐでも右へ流れて見えた）
   return tmp; }
@@ -839,7 +839,7 @@ function airArrows(p,rel,F){ const W0=pl.m*9.81||1e-9; if(!rel||!F){ airArrow.vi
 const FLOW={n:240,k:16,on:true,seeded:false,trAcc:0};
 { const segs=FLOW.n*(FLOW.k-1)*2; FLOW.p=new Float32Array(FLOW.n*3); FLOW.tr=new Float32Array(FLOW.n*FLOW.k*3); FLOW.sp=new Float32Array(FLOW.n);
   const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.BufferAttribute(new Float32Array(segs*3),3)); g.setAttribute('color',new THREE.BufferAttribute(new Float32Array(segs*3),3));
-  FLOW.line=new THREE.LineSegments(g,new THREE.LineBasicMaterial({vertexColors:true,transparent:true,opacity:.95,depthWrite:false})); FLOW.line.frustumCulled=false; FLOW.line.visible=false; field.add(FLOW.line);
+  FLOW.line=new THREE.LineSegments(g,new THREE.LineBasicMaterial({vertexColors:true,transparent:true,opacity:.6,depthWrite:false})); FLOW.line.frustumCulled=false; FLOW.line.visible=false; field.add(FLOW.line);
   const lg=new THREE.BufferGeometry(); lg.setAttribute('position',new THREE.BufferAttribute(new Float32Array(60*2*3),3)); lg.setAttribute('color',new THREE.BufferAttribute(new Float32Array(60*2*3),3));
   FLOW.comb=new THREE.LineSegments(lg,new THREE.LineBasicMaterial({vertexColors:true,depthTest:false})); FLOW.comb.renderOrder=6; FLOW.comb.frustumCulled=false; FLOW.comb.visible=false; field.add(FLOW.comb); }
 const _fq=new THREE.Quaternion(), _fv=new V3();
@@ -1214,7 +1214,7 @@ $('#rpPlay').addEventListener('click',startReplay);
 $('#flowBtn').addEventListener('click',()=>{ FLOW.on=!FLOW.on; const b=$('#flowBtn'); b.setAttribute('aria-pressed',String(FLOW.on)); if(!FLOW.on) flowHide(); });
 $('#rpT').addEventListener('input',e=>{ if(!flight||!flight.done||!flight.rec) return; const T=flight.rec[flight.rec.length-1].t; replay={t:+e.target.value/1000*T,playing:false}; $('#rpPlay').textContent='▶ 続きを見る'; });
 $$('#rpSp button').forEach(b=>{ b.setAttribute('aria-pressed',String(+b.dataset.s===rpSpeed)); b.addEventListener('click',()=>{ rpSpeed=+b.dataset.s; $$('#rpSp button').forEach(x=>x.setAttribute('aria-pressed',String(x===b))); }); });
-function setCam(m){ camMode=m; $$('#camMode button').forEach(x=>x.setAttribute('aria-pressed',String(x.dataset.c===m))); $('#camBtn').textContent='視点：'+({back:'後ろ',side:'横',top:'上'})[m]; }
+function setCam(m){ camMode=m; $$('#camMode button').forEach(x=>x.setAttribute('aria-pressed',String(x.dataset.c===m))); $('#camBtn').textContent='視点：'+({back:'後ろ',side:'斜め',top:'上'})[m]; }
 $$('#camMode button').forEach(b=>b.addEventListener('click',()=>setCam(b.dataset.c))); setCam(camMode);
 $('#camBtn').addEventListener('click',()=>setCam(({back:'side',side:'top',top:'back'})[camMode]));
 $('#lbBtn').addEventListener('click',()=>{ const on=app.classList.toggle('lbon'); $('#lbBtn').setAttribute('aria-pressed',String(on)); lbDirty=true; }); $('#shareImg').addEventListener('click',shareImg); $('#shareUrl').addEventListener('click',shareUrl);
@@ -1251,7 +1251,14 @@ function tick(dt){ time+=dt; if(tab==='fly'&&((time*20|0)!==((time-dt)*20|0))) d
     camera.position.set(tx+Math.sin(orbit.yaw)*Math.cos(orbit.pitch)*r,Math.sin(orbit.pitch)*r,Math.cos(orbit.yaw)*Math.cos(orbit.pitch)*r);
     camera.up.set(0,1,0); camera.lookAt(tx,0,0); camera.fov=40; if(D.kind==='ring') model.rotation.x+=dt*1.5; else if(D.kind==='ball') model.rotation.y+=dt*.6; }
   camera.updateProjectionMatrix(); lbTick(); if(sel&&tab==='make') drawFold();
-  if(!(tab==='make'&&D.kind==='plane')) renderer.render(tab==='fly'?field:hangar,camera); }
+  if(tab==='make'&&D.kind==='plane') return;
+  if(tab!=='fly'){ camera.layers.enableAll(); renderer.autoClear=true; renderer.render(hangar,camera); return; }
+  /* 飛ばす画面は2回に分けて描く：まず景色と空気の線、そのあとで機体と力の矢印を上から重ねる。
+     空気の線や木が機体の手前に来ても、機体が隠れない（2026-11-21 実機「見づらい」） */
+  for(const o of [model,FLOW.comb,airArrow,forceArrow,weightArrow]) o.traverse(c=>c.layers.set(1));
+  renderer.autoClear=true; camera.layers.set(0); renderer.render(field,camera);
+  const bg=field.background; field.background=null;                                    // 背景の色があると、2回目の前に画面がぬりつぶされる
+  renderer.autoClear=false; renderer.clearDepth(); camera.layers.set(1); renderer.render(field,camera); renderer.autoClear=true; camera.layers.enableAll(); field.background=bg; }
 function frame(now){ const dt=Math.min(.05,(now-last)/1000||0); last=now; tick(dt); requestAnimationFrame(frame); }
 
 /* ================= 起動 ================= */
