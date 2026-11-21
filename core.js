@@ -348,7 +348,7 @@ function launch(speed,angDeg,height,o){ o=o||{};
   let q=[Math.cos(g/2),0,0,Math.sin(g/2)];
   if(roll) q=qmul(q,[Math.cos(roll/2),Math.sin(roll/2),0,0]);
   if(hd) q=qmul([Math.cos(hd/2),0,Math.sin(hd/2),0],q);                           // 向きのぶれ（上から見て左右）
-  return {p:[0,height,0],v:[speed*Math.cos(g)*Math.cos(hd),speed*Math.sin(g),-speed*Math.cos(g)*Math.sin(hd)],q,w:[(o.spin||0)*2*Math.PI,o.yaw||0,0],t:0,alpha:0,speed,hmax:height,landed:false,path:[]};
+  return {p:[0,height,0],v:[speed*Math.cos(g)*Math.cos(hd),speed*Math.sin(g),-speed*Math.cos(g)*Math.sin(hd)],q,w:[(o.spin||0)*2*Math.PI,o.yaw||0,0],t:0,alpha:0,speed,hmax:height,landed:false,path:[],turn:0,psi:null};
 }
 const _vb=[0,0,0], _o={F:[0,0,0],M:[0,0,0]}, _fw=[0,0,0], _rel=[0,0,0], _wd=[0,0,0];
 function step(st,pl,dt,env){
@@ -375,6 +375,8 @@ function step(st,pl,dt,env){
   if(st.fx){ let m=0; const n=pl.flex.n; for(let i=0;i<2*n;i++) if(Math.abs(st.fx.th[i])>Math.abs(m)) m=st.fx.th[i]; st.flex=m; if(Math.abs(m)>(st.flexMax||0)) st.flexMax=Math.abs(m); }
   if(!st.F){ st.F=[0,0,0]; st.rel=[0,0,0]; } st.F[0]=_fw[0]; st.F[1]=_fw[1]; st.F[2]=_fw[2]; st.rel[0]=_rel[0]; st.rel[1]=_rel[1]; st.rel[2]=_rel[2];   // 見直し用：空気が機体を押す力（地面の向き）と、空気に対する速さ
   st.alpha=Math.atan2(-_vb[1],Math.hypot(_vb[0],_vb[2])); st.speed=Math.hypot(_rel[0],_rel[1],_rel[2]); if(st.p[1]>st.hmax) st.hmax=st.p[1];
+  // 旋回：上から見た進む向きが、どれだけ回ったか（rad。左回りが正）。急な上り下り（45°より急）と、ほぼ止まっているあいだは数えない（宙返りや、きりもみで落ちるのを旋回に入れない）
+  { const vh=Math.hypot(st.v[0],st.v[2]); if(vh>.5&&vh>Math.abs(st.v[1])){ const ps=Math.atan2(-st.v[2],st.v[0]); if(st.psi!=null){ let d=ps-st.psi; if(d>Math.PI) d-=2*Math.PI; else if(d<-Math.PI) d+=2*Math.PI; if(Math.abs(d)<.3) st.turn+=d; } st.psi=ps; } else st.psi=null; }
   const floor=pl.kind==='ball'?pl.d/2:pl.kind==='ring'?pl.D/2:0.015;
   if(st.p[1]<=floor&&!env.noGround){ st.p[1]=floor; st.landed=true; }
 }
