@@ -193,6 +193,9 @@ select{width:100%;margin-top:3px;padding:8px 8px;border:1.5px solid var(--ink);b
 .prow{display:flex;align-items:center;gap:10px}
 .kindrow{margin-bottom:10px} .kindrow #kind{flex:1} .kindrow #kind button{padding:7px 4px}
 .prow>span{font-family:var(--hand);font-size:14.5px;font-weight:600;white-space:nowrap}
+.baseRow{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin:14px 0 4px}
+.baseRow .b{min-height:44px;padding:8px 6px;font-size:13px;background:#eef3ef}
+.baseRow .b:disabled{opacity:.45}
 #presets{flex:1;display:grid;grid-template-columns:repeat(auto-fit,minmax(64px,1fr));gap:8px}
 #presets .b{padding:12px 4px;font-size:14px;background:#eef3ef;white-space:nowrap}
 .stick{position:sticky;bottom:calc(-1 * max(16px,env(safe-area-inset-bottom)));background:linear-gradient(0deg,var(--paper) 78%,rgba(251,250,245,0));padding:14px 0 max(16px,env(safe-area-inset-bottom));margin-top:6px;z-index:3}
@@ -381,13 +384,15 @@ details.more[open] summary{margin-bottom:6px}
         <h2>飛行機の形にする<small>まん中で二つに折り、翼を左右に開きます</small></h2>
         <div class="sl"><label for="pH">胴体の深さ</label><output id="pHo"></output><input id="pH" type="range" min="6" max="40" step="0.5" value="16"></div>
         <div class="sl"><label for="pWk">翼の折り線の傾き</label><output id="pWko"></output><input id="pWk" type="range" min="-15" max="15" step="0.5" value="0"><small class="slcap" id="wkCap"></small></div>
-        <div class="sl"><label for="pDih">翼の上向きの角度（上反角）</label><output id="pDiho"></output><input id="pDih" type="range" min="-5" max="30" step="0.5" value="8"></div>
-        <div class="sl"><label for="pElev">後ろの縁の反り上げ</label><output id="pElevo"></output><input id="pElev" type="range" min="-5" max="25" step="0.25" value="2.5"></div>
+        <div class="sl"><label for="pDih">翼の上向きの角度（上反角）</label><output id="pDiho"></output><input id="pDih" type="range" min="-5" max="30" step="0.5" value="0"></div>
+        <div class="sl"><label for="pElev">後ろの縁の反り上げ</label><output id="pElevo"></output><input id="pElev" type="range" min="-5" max="25" step="0.25" value="0"></div>
         <div class="sl"><label for="pElevD">左右の反りの差（曲がる向き）</label><output id="pElevDo"></output><input id="pElevD" type="range" min="-4" max="4" step="0.25" value="0"></div>
         <div class="sl"><label for="pRud">胴体の後ろを曲げる（方向舵）</label><output id="pRudo"></output><input id="pRud" type="range" min="-10" max="10" step="0.5" value="0"></div>
         <div class="sl"><label for="pWl">翼の先を立てる（垂直フラップ）</label><output id="pWlo"></output><input id="pWl" type="range" min="0" max="4" step="1" value="0"></div>
         <div class="sl" id="waRow"><label for="pWa">立てる角度</label><output id="pWao"></output><input id="pWa" type="range" min="-90" max="90" step="1" value="90"></div>
         <div class="sl"><label for="pClip">先に付けるクリップ</label><output id="pClipo"></output><input id="pClip" type="range" min="0" max="3" step="1" value="0"></div>
+        <div class="baseRow"><button class="b" id="baseSave">いまの値を自分の基本にする</button><button class="b" id="baseLoad">自分の基本に戻す</button><button class="b" id="baseFlat">フラットに戻す</button></div>
+        <p class="cap" id="baseCap"></p>
       </div>
       <h2>診断<small>折った形から計算</small></h2>
       <p class="hint" id="verdict"></p>
@@ -504,8 +509,13 @@ if(!window.THREE||!K){ $('#foldHint').textContent='部品を読み込めませ�
 const V3=THREE.Vector3;
 
 /* ================= 状態 ================= */
-const CRUSH=15, D={loc:'yard',mat:'copy',size:'a4',kind:'plane',crush:0,folds:[],preset:'',h:16,wk:0,elevD:0,rud:0,dih:8,elev:2.5,clips:0,wl:0,wa:90,ringA:20,ringN:5,tight:0,dist:1,
+const CRUSH=15, D={loc:'yard',mat:'copy',size:'a4',kind:'plane',crush:0,folds:[],preset:'',h:16,wk:0,elevD:0,rud:0,dih:0,elev:0,clips:0,wl:0,wa:90,ringA:20,ringN:5,tight:0,dist:1,
   v:6,ang:5,aim:0,spin:10,temp:20,alt:0,head:0,cross:0,gust:0};
+/* 仕上げのはじめの値：何も曲げていない「フラット」。自分の基本を保存してあれば、そちらを使う（この端末の中だけに残す） */
+const FLAT={h:16,wk:0,elevD:0,rud:0,dih:0,elev:0,clips:0,wl:0,wa:90}, BASE_KEY='khlab_base', BASE_LIM={h:[6,60],wk:[-15,15],elevD:[-4,4],rud:[-10,10],dih:[-5,30],elev:[-5,25],clips:[0,3],wl:[0,4],wa:[-90,90]};
+function baseGet(){ try{ const o=JSON.parse(localStorage.getItem(BASE_KEY)||'null'); if(!o||typeof o!=='object') return null; const r={}; for(const k in FLAT){ const v=+o[k]; if(!isFinite(v)) return null; r[k]=clamp(v,BASE_LIM[k][0],BASE_LIM[k][1]); } return r; }catch(e){ return null; } }
+const baseVals=()=>Object.assign({},FLAT,baseGet()||{});
+Object.assign(D,baseVals());
 let paper, faces, history=[], env, pl, an, tab='make';
 function refold(){ sel=null; faces=K.newPaper(paper); history=[]; const ok=[]; for(const f of D.folds){ const r=K.fold(faces,f[0],f[1],f[2]&1,f[2]&2); if(r.err) break; history.push(faces); faces=r.faces; ok.push(f); } D.folds=ok; }
 function buildAll(){
@@ -783,7 +793,8 @@ function freshPaper(){ D.folds=[]; D.crush=0; D.preset=''; if(D.kind==='ball'){ 
 function hint(t,bad){ const h=$('#foldHint'); h.textContent=t; h.classList.toggle('bad',!!bad); }
 let busy=false;
 async function runPreset(p){ if(busy) return; busy=true; D.folds=[]; D.crush=0; refold(); D.preset=p.id; changed(); for(const f of p.folds){ await new Promise(r=>setTimeout(r,420)); const r=K.fold(faces,f[0],f[1],f[2]&1,f[2]&2); if(r.err) break; history.push(faces); faces=r.faces; D.folds.push([f[0].slice(),f[1].slice(),f[2]|0]); changed(); }
-  D.h=p.prm.h; D.wk=p.prm.wk||0; D.elevD=p.prm.elevD||0; D.rud=p.prm.rud||0; D.dih=p.prm.dih; D.elev=p.prm.elev; D.clips=p.prm.clips; syncInputs(); changed(); hint(`お手本「${p.name}」を折りました。${p.note}。`+(D.mat!=='copy'||D.size!=='a4'?`（紙は ${paper.mat.name}・${paper.size.name}）`:'')); busy=false; }
+  { const mine=baseGet(), q=p.own?Object.assign({},FLAT,p.prm):mine||Object.assign({},FLAT,{h:p.prm.h}); for(const k in FLAT) D[k]=q[k]; D.h=clamp(D.h,6,+$('#pH').max); }
+  syncInputs(); changed(); hint(`お手本「${p.name}」を折りました。${p.note}。`+(p.own?'':baseGet()?'仕上げは「自分の基本」の値です。':'仕上げはフラット（曲げなし）から始まります。')+(D.mat!=='copy'||D.size!=='a4'?`（紙は ${paper.mat.name}・${paper.size.name}）`:'')); busy=false; }
 
 /* ================= 画面の更新 ================= */
 const fmt=(x,n)=>Number(x).toFixed(n==null?1:n);
@@ -851,8 +862,17 @@ function setPaper(){ paper=K.makePaper(D.size,D.mat); $('#pH').max=Math.round(pa
   { const b=document.createElement('button'); b.className='b'; b.textContent='最強型'; b.title='探索で見つけた、外乱があっても遠くへ飛ぶ設定'; b.addEventListener('click',bestPlane); $('#presets').appendChild(b); } }
 /* 最強型：総当たりに近い探索（紙36種 × 折り方260通り）で、外乱ありの平均がいちばん安定して長かった設定。紙・折り・仕上げ・投げ方をまとめて入れる */
 async function bestPlane(){ if(busy) return; D.size='a3'; D.mat='draw'; D.kind='plane'; setPaper(); syncInputs(); const p=K.presets(paper)[0];
-  await runPreset(Object.assign({},p,{prm:{h:26,dih:-2,elev:1.5,clips:2}})); D.v=15; D.ang=4; syncInputs(); changed();
+  await runPreset(Object.assign({},p,{own:true,prm:{h:26,dih:-2,elev:1.5,clips:2}})); D.v=15; D.ang=4; syncInputs(); changed();
   hint('最強型：A3の画用紙のやり型に、クリップ2個。秒速15m・上向き4°で投げます。'); }
+/* 自分の基本：いまの仕上げの値を覚える・戻す・フラットに戻す */
+function baseCap(){ const b=baseGet(); $('#baseLoad').disabled=!b;
+  $('#baseCap').textContent=b?`自分の基本：胴体 ${fmt(b.h,1)}mm・折り線 ${fmt(b.wk,1)}°・上反角 ${fmt(b.dih,1)}°・反り ${fmt(b.elev,2)}°・左右差 ${fmt(b.elevD,2)}°・方向舵 ${fmt(b.rud,1)}°・翼の先 ${b.wl}・クリップ ${b.clips}個。開いたときと、お手本を折ったときに、この値から始まります（最強型をのぞく）。この端末の中だけに残ります。`
+    :'自分の基本は、まだありません。はじめはフラット（上反角 0°・反り 0°・クリップなし）です。'; }
+function baseApply(q){ for(const k in FLAT) D[k]=q[k]; D.h=clamp(D.h,6,+$('#pH').max); syncInputs(); changed(); if(typeof dockSync==='function') dockSync(); }
+function baseInit(){ baseCap();
+  $('#baseSave').addEventListener('click',()=>{ const o={}; for(const k in FLAT) o[k]=D[k]; let ok=true; try{ localStorage.setItem(BASE_KEY,JSON.stringify(o)); }catch(e){ ok=false; } baseCap(); if(!ok||!baseGet()) $('#baseCap').textContent='保存できませんでした（この端末では、記録を残す場所が使えません）。'; });
+  $('#baseLoad').addEventListener('click',()=>{ const b=baseGet(); if(b) baseApply(b); });
+  $('#baseFlat').addEventListener('click',()=>baseApply(Object.assign({},FLAT,{h:D.h}))); }
 function setTab(t){ if(flight&&!flight.done) flight=null; throwBtn(false); tab=t; velArrow.visible=airArrow.visible=forceArrow.visible=weightArrow.visible=false; flowHide();
   { const tp=$('#tnPlane'), tune=$('.pane.tune'); if(t==='fly') $('#flyTuneSlot').appendChild(tp); else if(tp.parentNode!==tune) tune.insertBefore(tp,tune.firstChild); }   /* 仕上げのつまみを、飛ばす画面でも使う */ app.dataset.tab=t; $$('.tabs button').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.tab===t)));
   const sc=t==='fly'?field:hangar; if(model.parent!==sc){ sc.add(model); } if(t!=='fly'){ model.position.set(0,0,0); model.quaternion.set(0,0,0,1); model.scale.setScalar(1); orbit.auto=true; }
@@ -1354,7 +1374,7 @@ function frame(now){ const dt=Math.min(.05,(now-last)/1000||0); last=now; tick(d
 
 /* ================= 起動 ================= */
 if(location.hash.startsWith('#d=')) decode(location.hash.slice(3));
-setPaper(); refold(); syncInputs(); lbInit(); buildAll(); buildMesh(); bendMesh(glideFx); renderDiag(); renderLabels(); applyLoc(); fit(); setTab('make');
+setPaper(); refold(); syncInputs(); baseInit(); lbInit(); buildAll(); buildMesh(); bendMesh(glideFx); renderDiag(); renderLabels(); applyLoc(); fit(); setTab('make');
 if(document.fonts&&document.fonts.ready) document.fonts.ready.then(()=>{ drawFold(); });
 requestAnimationFrame(frame);
 })();
