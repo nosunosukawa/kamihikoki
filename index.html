@@ -165,7 +165,11 @@ select{width:100%;margin-top:3px;padding:8px 8px;border:1.5px solid var(--ink);b
 .result .big{font-family:var(--mono);font-weight:600;font-size:46px;line-height:1;color:var(--red)}
 .result .big i{font-style:normal;font-size:18px;margin-left:4px;color:var(--ink)}
 .result .big small{display:block;font-family:"Zen Kaku Gothic New",sans-serif;font-size:12px;font-weight:700;line-height:1.3;color:var(--ink);margin-bottom:3px}
-#evSeg{grid-template-columns:repeat(3,1fr)}
+#evSeg{grid-template-columns:repeat(3,1fr);margin-bottom:10px}
+.dkev{display:none}
+.app.dock #evSeg{display:none}
+.app.dock[data-tab="fly"] .dkev{display:grid;grid-template-columns:repeat(3,1fr);margin:2px 0 4px}
+.app.dock .dkev button{min-height:40px;font-size:13px}
 .result p{font-size:13px;margin-top:4px}
 .goal{margin:8px 0 4px}
 .goal:empty{display:none}
@@ -247,7 +251,7 @@ details.more[open] summary{margin-bottom:6px}
 .dkres{flex:1;min-width:0;display:flex;align-items:center;gap:9px}
 #dkDist{font-family:var(--mono);font-weight:600;font-size:30px;line-height:1;color:var(--red);white-space:nowrap}
 #dkDist:empty{display:none}
-#dkNote{font-size:11.5px;line-height:1.35;color:#33443e;font-weight:700;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+#dkNote{font-size:11.5px;line-height:1.35;color:#33443e;font-weight:700;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 #dkNote.bad{color:#b3301a}
 .dkrp,.dkmore{flex:none;padding:0 11px;min-height:44px;font-size:12.5px;white-space:nowrap}
 .dkrp{background:var(--ink);color:var(--paper)}
@@ -313,15 +317,15 @@ details.more[open] summary{margin-bottom:6px}
     <div class="grab" id="grab"></div>
     <div class="hud" id="hud">
       <div><small>距離</small><b id="hDist">0.0</b><i>m</i></div>
+      <div id="hTurnBox" hidden><small>旋回</small><b id="hTurn">0.0</b><i>回</i></div>
       <div><small>高さ</small><b id="hAlt">0.0</b><i>m</i></div>
       <div><small>速さ</small><b id="hSpd">0.0</b><i>m/s</i></div>
       <div><small>迎角</small><b id="hAoa">0</b><i>°</i></div>
       <div><small>時間</small><b id="hTime">0.0</b><i>秒</i></div>
-      <div id="hTurnBox" hidden><small>旋回</small><b id="hTurn">0.0</b><i>回</i></div>
       <div id="hFlexBox"><small>しなり</small><b id="hFlex">0</b><i>°</i></div>
       <div id="hRp" hidden><small>見直し中</small><b id="hRpS">×1</b></div>
     </div>
-    <div class="sbar" id="sbar"><button class="ff" id="evBtn" aria-label="競技を切り替える">競技：飛距離</button><button class="ff" id="ff">早送り ×1</button><button class="ff" id="flowBtn" aria-pressed="true">表示：力</button><button class="ff dkonly" id="lbBtn" aria-pressed="false">翼の断面</button><button class="ff dkonly" id="camBtn" aria-label="見る位置を切り替える">視点：後ろ</button><button class="ff" id="helpBtn" aria-pressed="false" aria-label="矢印と線の意味を見る">？</button></div>
+    <div class="sbar" id="sbar"><button class="ff" id="ff">早送り ×1</button><button class="ff" id="flowBtn" aria-pressed="true">表示：力</button><button class="ff dkonly" id="lbBtn" aria-pressed="false">翼の断面</button><button class="ff dkonly" id="camBtn" aria-label="見る位置を切り替える">視点：後ろ</button><button class="ff" id="helpBtn" aria-pressed="false" aria-label="矢印と線の意味を見る">？</button></div>
     <span class="alab" id="alL">揚力</span><span class="alab" id="alD">抗力</span><span class="alab" id="alW">重さ</span><span class="alab" id="alV">進む向き</span><span class="alab" id="flC"></span><span class="alab" id="flP"></span><span class="alab" id="flB"></span>
     <p class="say" id="say" role="status"></p>
     <button class="legend" id="legend" aria-label="矢印と線の意味。押すと閉じます">
@@ -348,6 +352,7 @@ details.more[open] summary{margin-bottom:6px}
 
   <aside class="panel" id="panel">
     <div class="dk" id="dk">
+      <div class="seg dkev" id="dkEv" role="group" aria-label="競技"><button data-e="dist">飛距離</button><button data-e="time">滞空時間</button><button data-e="turn">旋回</button></div>
       <div class="dkrow"><div class="dkres"><b id="dkDist"></b><span id="dkNote"></span></div><button class="b dkrp" id="dkRp" hidden>▶ 見直す</button><button class="b dkmore" id="dkMore" aria-expanded="false">くわしく ▲</button></div>
       <div class="dkchips" id="dkChips" role="tablist" aria-label="調整するところ"></div>
     </div>
@@ -410,10 +415,12 @@ details.more[open] summary{margin-bottom:6px}
 
     <!-- 3 飛ばす -->
     <div class="pane fly">
+      <div class="seg" id="evSeg" role="group" aria-label="競技"><button data-e="dist">飛距離</button><button data-e="time">滞空時間</button><button data-e="turn">旋回</button></div>
       <div class="result" id="result">
         <div class="big"><small id="rEv">飛距離</small><span id="rDist">0.0</span><i id="rUnit">m</i></div>
         <div class="goal" id="goalR"></div>
         <p id="rLine"></p>
+        <details class="more" id="rMoreBox"><summary>くわしい数字</summary><p class="cap" id="rMore"></p></details>
         <canvas id="chart" width="640" height="220" aria-label="横から見た飛び方"></canvas>
         <p class="cap" id="chartCap"></p>
         <div class="rp" id="rp">
@@ -436,9 +443,7 @@ details.more[open] summary{margin-bottom:6px}
         </details>
       </div>
       <div class="goal" id="goalTop"></div>
-      <h2>競技</h2>
-      <div class="seg" id="evSeg"><button data-e="dist">飛距離</button><button data-e="time">滞空時間</button><button data-e="turn">旋回</button></div>
-      <p class="cap" id="evCap" style="margin-top:4px"></p>
+      <p class="cap" id="evCap" style="margin:2px 0 0"></p>
       <h2>投げ方</h2>
       <div class="sl"><label for="tV">投げる速さ</label><output id="tVo"></output><input id="tV" type="range" min="2" max="35" step="0.1" value="6"><small class="slcap" id="tVCap"></small></div>
       <div class="sl"><label for="tA">投げる角度</label><output id="tAo"></output><input id="tA" type="range" min="-10" max="60" step="0.5" value="5"></div>
@@ -502,9 +507,9 @@ const K=window.KH, app=$('#app');
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v)), TAU=Math.PI*2, DEG=Math.PI/180;
 const TAG='#紙飛行機ラボ', REC_DIST=98.43, REC_TIME=29.2;
 /* 競技：飛距離・滞空時間・旋回の回数。自己ベスト・目標・ランキングは、競技ごとに分けて持つ */
-const EVENTS={dist:{name:'飛距離',unit:'m',n:1,cap:'どこまで遠くへ飛ばせるかを競います。'},
-  time:{name:'滞空時間',unit:'秒',n:2,cap:'投げてから着地するまでの秒数を競います。高く投げ上げて、ゆっくり降ろします。'},
-  turn:{name:'旋回',unit:'回',n:1,cap:'着地するまでに、上から見て何回まわれたかを競います。方向舵・翼の折り線の傾き・左右の反りの差で曲げます（宙返りと、きりもみは数えません）。'}};
+const EVENTS={dist:{name:'飛距離',unit:'m',n:1,cap:'遠くへ飛ばした距離を競います。'},
+  time:{name:'滞空時間',unit:'秒',n:2,cap:'着地するまでの秒数を競います。'},
+  turn:{name:'旋回',unit:'回',n:1,cap:'上から見て何回まわれたかを競います（宙返りは数えません）。'}};
 const LOCS=[
   {id:'yard',name:'校庭',h:1.7,note:'手の高さ 1.7m から。世界記録と比べられる標準の場所'},
   {id:'roof',name:'校舎の屋上',h:15,note:'高さ 15m。滑空比のよい機体ほど遠くへ届く'},
@@ -815,7 +820,7 @@ function hint(t,bad){ const h=$('#foldHint'); h.textContent=t; h.classList.toggl
 let busy=false;
 async function runPreset(p){ if(busy) return; busy=true; D.folds=[]; D.crush=0; refold(); D.preset=p.id; changed(); for(const f of p.folds){ await new Promise(r=>setTimeout(r,420)); const r=K.fold(faces,f[0],f[1],f[2]&1,f[2]&2); if(r.err) break; history.push(faces); faces=r.faces; D.folds.push([f[0].slice(),f[1].slice(),f[2]|0]); changed(); }
   { const mine=baseGet(), q=p.own?Object.assign({},FLAT,p.prm):mine||Object.assign({},FLAT,{h:p.prm.h}); for(const k in FLAT) D[k]=q[k]; D.h=clamp(D.h,6,+$('#pH').max); }
-  syncInputs(); changed(); hint(`お手本「${p.name}」を折りました。${p.note}。`+(p.own?'':baseGet()?'仕上げは「自分の基本」の値です。':'仕上げはフラット（曲げなし）から始まります。')+(D.mat!=='copy'||D.size!=='a4'?`（紙は ${paper.mat.name}・${paper.size.name}）`:'')); busy=false; }
+  syncInputs(); changed(); hint(`「${p.name}」を折りました。${p.note}。`+(!p.own&&baseGet()?'仕上げは「自分の基本」です。':'')); busy=false; }
 
 /* ================= 画面の更新 ================= */
 const fmt=(x,n)=>Number(x).toFixed(n==null?1:n);
@@ -830,11 +835,11 @@ function renderLabels(){ if(typeof drawIcons==='function') queueMicrotask(drawIc
   const o=(id,t)=>{ $('#'+id).textContent=t; };
   o('pWlo',D.wl&&pl.wlMM?'先から '+fmt(pl.wlMM,0)+' mm':'なし'); o('pWao',D.wa>0?'上へ '+D.wa+'°':D.wa<0?'下へ '+(-D.wa)+'°':'0°（平ら）'); $('#waRow').hidden=!D.wl;
   o('pHo',fmt(D.h,1)+' mm'+(D.wk?'（まん中）':'')); if(pl&&pl.keel){ const a=pl.wk/DEG, kf=pl.keel; o('pWko',Math.abs(a)<.05?'平行':(a>0?'+':'−')+fmt(Math.abs(a),1)+'°'+(Math.abs(Math.abs(a)-Math.abs(D.wk))>.3?'（限界）':'')); $('#wkCap').textContent=`胴体の深さ 前 ${fmt(kf[0],0)} mm・後ろ ${fmt(kf[1],0)} mm（＋で後ろが深い）`; } o('pDiho',fmt(D.dih,1)+'°'); o('pElevo',fmt(D.elev,2)+'°'); o('pElevDo',D.elevD?(D.elevD>0?'右':'左')+'を '+fmt(Math.abs(D.elevD),2)+'° 多く':'なし'); o('pRudo',D.rud?(D.rud>0?'右へ ':'左へ ')+fmt(Math.abs(D.rud),1)+'°':'まっすぐ'); o('pClipo',D.clips?D.clips+' 個（'+fmt(D.clips*.5,1)+'g）':'なし');
-  o('ringAo',fmt(D.ringA,1)+' mm'); o('ringNo',D.ringN+' 回'); o('tVo',fmt(D.v,1)+' m/s'); o('tVCap','時速 '+Math.round(D.v*3.6)+'km'+(D.kind==='plane'&&an&&an.V>0&&an.state==='ok'?`。この機体がつり合って滑る速さは 秒速 ${fmt(an.V,1)}m`:'')); o('tAo',fmt(D.ang,1)+'°'); o('tHo',D.aim?(D.aim>0?'右へ ':'左へ ')+Math.abs(D.aim)+'°':'まっすぐ'); o('tSo',D.spin?(D.spin>0?'右回り ':'左回り ')+Math.abs(D.spin)+' 回/秒':'回さない');
+  o('ringAo',fmt(D.ringA,1)+' mm'); o('ringNo',D.ringN+' 回'); o('tVo',fmt(D.v,1)+' m/s'); o('tVCap','時速 '+Math.round(D.v*3.6)+'km'+(D.kind==='plane'&&an&&an.V>0&&an.state==='ok'?`・つり合う速さ 秒速${fmt(an.V,1)}m`:'')); o('tAo',fmt(D.ang,1)+'°'); o('tHo',D.aim?(D.aim>0?'右へ ':'左へ ')+Math.abs(D.aim)+'°':'まっすぐ'); o('tSo',D.spin?(D.spin>0?'右回り ':'左回り ')+Math.abs(D.spin)+' 回/秒':'回さない');
   o('eTo',D.temp+'℃'); o('eAlto',D.alt+' m'); o('eHeado',D.head>0?'向かい風 '+fmt(D.head,1)+' m/s':D.head<0?'追い風 '+fmt(-D.head,1)+' m/s':'無風');
   o('eCrosso',D.cross>0?'左から '+fmt(D.cross,1)+' m/s':D.cross<0?'右から '+fmt(-D.cross,1)+' m/s':'なし'); o('eGusto',D.gust?'±'+fmt(D.gust,2)+' m/s':'なし');
   $$('#dist button').forEach(b=>b.setAttribute('aria-pressed',String(+b.dataset.d===D.dist)));
-  $$('#evSeg button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.e===D.ev))); $('#evCap').textContent=EV().cap; $('#evBtn').textContent='競技：'+EV().name; $('#hTurnBox').hidden=D.ev!=='turn'; { const d=K.DIST[D.dist];
+  $$('#evSeg button,#dkEv button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.e===D.ev))); $('#evCap').textContent=EV().cap; $('#hTurnBox').hidden=D.ev!=='turn'; { const d=K.DIST[D.dist];
     $('#distCap').textContent=d?`投げるたびに結果が変わります。角度 ±${d.ang}°・左右の傾き ±${d.roll}°・向き ±${d.yaw}°・速さ ±${Math.round(d.dv*100)}%、空気のゆらぎ ${d.turb}m/s、左右の翼の反りの差 ±${d.warp}°（どれも、ばらつきの目安）`:'ぶれもゆらぎもなし。同じ投げ方なら、毎回同じ結果になります。'; }
   $('#spinRow').hidden=D.kind!=='ring'; $('#tV').max=D.kind==='ring'?20:35;
   $('#mkPlane').hidden=D.kind!=='plane'; $('#mkRing').hidden=D.kind!=='ring'; $('#mkBall').hidden=D.kind!=='ball'; $('#tnPlane').hidden=D.kind!=='plane';
@@ -891,19 +896,19 @@ function bestFolds(ff){ const w=paper.pw, L=paper.L, P=K.presets(paper), t=Math.
   return ff==='heso'?P[1].folds:ff==='dart3'?P[0].folds.concat([[[x2,y2],[0,Math.hypot(x2,y2)]]]):ff==='dartN'?[[[0,0],[0,w*.5]],[[w,w*.25],[0,w*1.25]],[[w,w*1.25],[0,w*.25+w*r]]]:ff==='dartS'?[[[w,0],[0,w*.7]],[[w,w*.7],[0,w*.7*r]]]:P[0].folds; }
 async function bestPlane(){ if(busy) return; const B=BEST[D.ev]||BEST.dist; D.size=B.size; D.mat=B.mat; D.kind='plane'; setPaper(); syncInputs();
   await runPreset({id:'best',name:'最強型',note:BEST_FF[B.ff],folds:bestFolds(B.ff),own:true,prm:B.prm}); D.v=B.v; D.ang=B.ang; D.aim=0; syncInputs(); changed();
-  hint(`最強型（${EV().name}）：${paper.mat.name}（${paper.size.name}）の、${BEST_FF[B.ff]}${B.prm.clips?`に、クリップ${B.prm.clips}個`:''}。秒速${B.v}m・${B.ang<0?'下向き':'上向き'}${Math.abs(B.ang)}°で投げます。校庭・外乱ふつうで、平均 ${evTxt(B.mean)} ほど。`); }
+  hint(`最強型（${EV().name}）：${paper.size.name.includes(paper.mat.name)?'':paper.mat.name+' '}${paper.size.name}。秒速${B.v}m・${B.ang<0?'下向き':'上向き'}${Math.abs(B.ang)}°で投げると、平均 ${evTxt(B.mean)} ほど。`); }
 /* 自分の基本：いまの仕上げの値を覚える・戻す・フラットに戻す */
 function baseCap(){ const b=baseGet(); $('#baseLoad').disabled=!b;
-  $('#baseCap').textContent=b?`自分の基本：胴体 ${fmt(b.h,1)}mm・折り線 ${fmt(b.wk,1)}°・上反角 ${fmt(b.dih,1)}°・反り ${fmt(b.elev,2)}°・左右差 ${fmt(b.elevD,2)}°・方向舵 ${fmt(b.rud,1)}°・翼の先 ${b.wl}・クリップ ${b.clips}個。開いたときと、お手本を折ったときに、この値から始まります（最強型をのぞく）。この端末の中だけに残ります。`
-    :'自分の基本は、まだありません。はじめはフラット（上反角 0°・反り 0°・クリップなし）です。'; }
+  $('#baseCap').textContent=b?`自分の基本：胴体 ${fmt(b.h,1)}mm・折り線 ${fmt(b.wk,1)}°・上反角 ${fmt(b.dih,1)}°・反り ${fmt(b.elev,2)}°・左右差 ${fmt(b.elevD,2)}°・方向舵 ${fmt(b.rud,1)}°・翼の先 ${b.wl}・クリップ ${b.clips}個。次からは、この値で始まります。`
+    :'自分の基本は、まだありません（はじめは曲げなし）。'; }
 function baseApply(q){ for(const k in FLAT) D[k]=q[k]; D.h=clamp(D.h,6,+$('#pH').max); syncInputs(); changed(); if(typeof dockSync==='function') dockSync(); }
 function baseInit(){ baseCap();
   $('#baseSave').addEventListener('click',()=>{ const o={}; for(const k in FLAT) o[k]=D[k]; let ok=true; try{ localStorage.setItem(BASE_KEY,JSON.stringify(o)); }catch(e){ ok=false; } baseCap(); if(!ok||!baseGet()) $('#baseCap').textContent='保存できませんでした（この端末では、記録を残す場所が使えません）。'; });
   $('#baseLoad').addEventListener('click',()=>{ const b=baseGet(); if(b) baseApply(b); });
   $('#baseFlat').addEventListener('click',()=>baseApply(Object.assign({},FLAT,{h:D.h}))); }
 function throwCap(){ const b=throwGet(); $('#thLoad').disabled=!b;
-  $('#thCap').textContent=b?`自分の投げ方：秒速 ${fmt(b.v,1)}m・角度 ${fmt(b.ang,1)}°・向き ${fmt(b.aim,0)}°・回転 ${fmt(b.spin,0)}。開いたときに、この投げ方から始まります。この端末の中だけに残ります。`
-    :'自分の投げ方は、まだありません。はじめは 秒速 6m・上向き 5°・まっすぐ です。'; }
+  $('#thCap').textContent=b?`自分の投げ方：秒速 ${fmt(b.v,1)}m・角度 ${fmt(b.ang,1)}°・向き ${fmt(b.aim,0)}°・回転 ${fmt(b.spin,0)}。次からは、この投げ方で始まります。`
+    :'自分の投げ方は、まだありません（はじめは 秒速 6m・上向き 5°）。'; }
 function throwApply(q){ for(const k in THROW0) D[k]=q[k]; syncInputs(); changed(); if(typeof dockSync==='function') dockSync(); }
 function throwInit(){ throwCap();
   $('#thSave').addEventListener('click',()=>{ const o={}; for(const k in THROW0) o[k]=D[k]; let ok=true; try{ localStorage.setItem(THROW_KEY,JSON.stringify(o)); }catch(e){ ok=false; } throwCap(); if(!ok||!throwGet()) $('#thCap').textContent='保存できませんでした（この端末では、記録を残す場所が使えません）。'; });
@@ -1132,12 +1137,14 @@ function renderGoal(){ const best=bestNow(), g=goalFor(best), none=D.loc==='iss'
     gl.append(a,b); el.append(gl); el.classList.toggle('hit',hit);
     if(g.next!=null){ const bar=document.createElement('div'), i=document.createElement('i'); bar.className='gbar'; i.style.width=clamp((best-g.prev)/(g.next-g.prev)*100,0,100).toFixed(0)+'%'; bar.append(i); el.append(bar); } } }
 let lastDist=null, lastKey='';
+const pc=x=>x<10?fmt(x,1):x>=99&&x<100?fmt(Math.floor(x*10)/10,1):fmt(x,0);      // 99.6% を「100%」と出さない
 function finish(){ const f=flight, st=f.st, dist=Math.hypot(st.p[0],st.p[2]), L=LOC(); throwBtn(false); const turns=turnsOf(st), score=D.ev==='time'?st.t:D.ev==='turn'?turns:dist, lk=evKey(), diff=lastDist==null||lastKey!==lk?'':`前回より ${score>=lastDist?'+':'−'}${evTxt(Math.abs(score-lastDist))}。`; lastDist=score; lastKey=lk;
   const R={dist,score,turns,ev:D.ev,time:st.t,hmax:st.hmax,vavg:f.vsum/Math.max(1,f.vn),path:f.path,kind:D.kind,loc:L,name:D.kind==='plane'?(D.preset==='best'?{name:'最強型'}:K.presets(paper).find(p=>p.id===D.preset)||{name:'自分で折った機体'}).name:KIND_NAME[D.kind]}; f.R=R;
   $('#rDist').textContent=fmt(score,EV().n); $('#rUnit').textContent=EV().unit; $('#rEv').textContent=EV().name; const pct=dist/REC_DIST*100, pctT=st.t/REC_TIME*100;
   const brk=st.broke!=null?(()=>{ const b=st.brokeSide, sideTxt=b[0]&&b[1]?'両方の翼':b[0]?'右の翼':'左の翼', up=(b[0]||b[1])>0?'上':'下'; return `${fmt(st.broke,2)}秒で、${sideTxt}の付け根が風に負けて${up}へ折れました（付け根の紙ののび ${fmt(st.fx.emax*100,2)}%）。`; })():'';
-  const tip=(f.wall?' 壁に当たりました。':L.id==='iss'?' 20秒で打ち切りました。':st.p[0]<-.5?' 後ろへ戻ってしまいました。':st.hmax>L.h+2.5&&dist<6?' 上がりすぎて失速しました。速さか反り上げを減らします。':'');
-  $('#rLine').textContent=diff+brk+`${L.name}から。`+(D.ev!=='dist'?`飛距離 ${fmt(dist,1)}m・`:'')+(D.ev!=='turn'&&turns>=.5?`旋回 ${fmt(turns,1)}回・`:'')+`滞空 ${fmt(st.t,2)}秒・最高 ${fmt(st.hmax,1)}m・平均 秒速${fmt(R.vavg,1)}m。`+(st.flexMax>.09?`翼のしなり 最大 ${fmt(st.flexMax*180/Math.PI,0)}°${st.flexMax>.6?'（折れ上がって揚力を失いました）':''}。`:'')+(f.dz?`今回のぶれ：角度 ${f.dz.dAng>=0?'+':''}${fmt(f.dz.dAng,1)}°・傾き ${f.dz.roll>=0?'+':''}${fmt(f.dz.roll/DEG,0)}°・向き ${f.dz.head>=0?'+':''}${fmt(f.dz.head/DEG,0)}°・速さ ${f.dz.dv>=0?'+':''}${fmt(f.dz.dv*100,0)}%。`:'')+(L.id!=='yard'||D.ev==='turn'?'':D.ev==='time'?`世界記録 ${REC_TIME}秒 の ${fmt(pctT,pctT<10?1:0)}%。`:`世界記録 ${REC_DIST}m の ${fmt(pct,pct<10?1:0)}%。`)+tip;
+  const tip=(f.wall?' 壁に当たりました。':L.id==='iss'?' 20秒で打ち切りました。':st.p[0]<-.5?' 後ろへ戻ってしまいました。':D.ev==='dist'&&st.hmax>L.h+2.5&&dist<6?' 上がりすぎて失速しました。':'');
+  $('#rLine').textContent=diff+(st.broke!=null?'翼が折れました。':'')+(L.id!=='yard'||D.ev==='turn'?'':D.ev==='time'?`世界記録の ${pc(pctT)}%。`:`世界記録の ${pc(pct)}%。`)+[D.ev!=='dist'?`飛距離 ${fmt(dist,1)}m`:'',D.ev!=='turn'&&turns>=.5?`旋回 ${fmt(turns,1)}回`:'',D.ev!=='time'?`滞空 ${fmt(st.t,1)}秒`:'',`最高 ${fmt(st.hmax,1)}m`].filter(Boolean).join('・')+'。'+tip;
+  $('#rMore').textContent=brk+`${L.name}から。滞空 ${fmt(st.t,2)}秒・平均 秒速${fmt(R.vavg,1)}m。`+(st.flexMax>.09?`翼のしなり 最大 ${fmt(st.flexMax*180/Math.PI,0)}°${st.flexMax>.6?'（折れ上がって揚力を失いました）':''}。`:'')+(f.dz?`今回のぶれ：角度 ${f.dz.dAng>=0?'+':''}${fmt(f.dz.dAng,1)}°・傾き ${f.dz.roll>=0?'+':''}${fmt(f.dz.roll/DEG,0)}°・向き ${f.dz.head>=0?'+':''}${fmt(f.dz.head/DEG,0)}°・速さ ${f.dz.dv>=0?'+':''}${fmt(f.dz.dv*100,0)}%。`:'');
   replay=null; sayShow(''); flowHide(); $('#rpPlay').textContent='▶ もう一度見る'; $('#rpT').value=1000; $('#rp').hidden=!(f.rec&&f.rec.length>1); $('#rpInfo').textContent='';
   $('#result').classList.add('on'); $('#panel').scrollTop=0; drawChart(R); $('#shareX').href=xUrl(R);
   const b0=bestNow();
@@ -1246,9 +1253,8 @@ for(const [id,key] of [['pH','h'],['pWk','wk'],['pElevD','elevD'],['pRud','rud']
 $('#undo').addEventListener('click',()=>{ if(busy) return; sel=null; if(D.crush>0){ D.crush--; changed(); hint('1手もどしました。'); return; } if(!history.length) return; faces=history.pop(); D.folds.pop(); D.preset=''; changed(); hint('1手もどしました。'); });
 $('#reset').addEventListener('click',()=>{ if(busy) return; freshPaper(); });
 $$('#dist button').forEach(b=>b.addEventListener('click',()=>{ D.dist=+b.dataset.d; renderLabels(); }));
-function setEv(e){ if(!EVENTS[e]||e===D.ev) return; D.ev=e; try{ localStorage.setItem('khlab_ev',e); }catch(err){} lastDist=null; resetFlightView(); renderLabels(); toast('競技：'+EV().name); }
-$$('#evSeg button').forEach(b=>b.addEventListener('click',()=>setEv(b.dataset.e)));
-$('#evBtn').addEventListener('click',()=>{ const ks=Object.keys(EVENTS); setEv(ks[(ks.indexOf(D.ev)+1)%ks.length]); });
+function setEv(e){ if(!EVENTS[e]||e===D.ev) return; D.ev=e; try{ localStorage.setItem('khlab_ev',e); }catch(err){} lastDist=null; resetFlightView(); renderLabels(); if(typeof fit==='function') fit(); }
+$$('#evSeg button,#dkEv button').forEach(b=>b.addEventListener('click',()=>setEv(b.dataset.e)));
 $('#mode').addEventListener('click',()=>{ under=!under; $('#mode').setAttribute('aria-pressed',String(under)); $('#modeTxt').textContent=under?'山折り':'谷折り'; $('#modeIcon').setAttribute('d',under?'M3 14l7-8 7 8':'M3 6l7 8 7-8');
   if(topOnly){ hotFor=null; sel=null; }                                                    // 上だけのときは、谷と山で、つまむ紙（いちばん上／いちばん裏）が変わる
   hint(under?(topOnly?'山折り＋上だけ：いちばん裏の紙だけを、裏へ折り返します。':'山折り：これから折る所は、紙の裏側へ回ります。'):(topOnly?'谷折り＋上だけ：いちばん上の紙だけを、手前へ折り返します。':'谷折り：これから折る所は、手前に重なります。')); drawFold(); });
@@ -1379,9 +1385,11 @@ const dkCur={tune:'pElev',fly:'tV'}; let dkIds='';
 function dockSync(){ if(!app.classList.contains('dock')||tab==='make') return;
   const max=app.dataset.sheet==='max', f=flight, done=tab==='fly'&&f&&f.done&&f.R, mb=$('#dkMore'), d=$('#dkDist'), n=$('#dkNote');
   mb.textContent=max?'たたむ ▼':(tab==='fly'?'結果と設定 ▲':'くわしく ▲'); mb.setAttribute('aria-expanded',String(max));
-  if(max){ d.textContent=''; n.className=''; n.textContent=tab==='fly'?'くわしい結果・場所・外乱・風・ランキング':'診断と、くわしい数字'; }
+  if(max){ d.textContent=''; n.className=''; n.textContent=tab==='fly'?'結果・場所・風・ランキング':'診断と、くわしい数字'; }
   else if(done){ d.textContent=evTxt(f.R.score,f.R.ev); n.className=''; n.textContent=f.note||''; }
-  else { const v=$('#verdict'); d.textContent=''; n.className=v.classList.contains('bad')?'bad':''; n.textContent=D.kind==='plane'?v.textContent:tab==='fly'?'速さと角度を決めて、投げます。':''; }
+  else { const v=$('#verdict'); d.textContent=''; const bad=v.classList.contains('bad'); n.className=bad?'bad':'';
+    if(tab==='fly'&&!bad){ const b=bestNow(), g=goalFor(b); n.textContent=D.loc==='iss'?'速さと角度を決めて、投げます。':g.next==null?`自己ベスト ${evTxt(b)}`:(b?`自己ベスト ${evTxt(b)}。`:'')+`${b?'次の':'最初の'}目標 ${goalName(g.next)}`; }
+    else n.textContent=D.kind==='plane'?v.textContent:tab==='fly'?'速さと角度を決めて、投げます。':''; }
   $('#dkRp').hidden=!(done&&f.rec&&f.rec.length>1);
   const rows=[...$('.pane.'+tab).querySelectorAll('.sl')].map(r=>r.querySelector('input[type=range]')).filter(e=>e&&DK_NAME[e.id]&&!e.closest('details')&&!e.closest('[hidden]'));
   const ids=rows.map(e=>e.id), box=$('#dkChips'); if(!ids.includes(dkCur[tab])) dkCur[tab]=ids[0]||'';
