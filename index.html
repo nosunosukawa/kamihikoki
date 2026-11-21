@@ -14,12 +14,12 @@
 <meta name="apple-mobile-web-app-title" content="紙飛行機ラボ">
 <meta property="og:type" content="website">
 <meta property="og:title" content="紙飛行機ラボ">
-<meta property="og:description" content="画面の上で紙を折り、重心と空気の力を計算して飛ばす。世界記録は 88.31m。">
+<meta property="og:description" content="画面の上で紙を折り、重心と空気の力を計算して飛ばす。世界記録は 98.43m。">
 <meta property="og:url" content="https://nosunosukawa.github.io/kamihikoki/">
 <meta property="og:image" content="https://nosunosukawa.github.io/kamihikoki/og.png">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="紙飛行機ラボ">
-<meta name="twitter:description" content="画面の上で紙を折り、重心と空気の力を計算して飛ばす。世界記録は 88.31m。">
+<meta name="twitter:description" content="画面の上で紙を折り、重心と空気の力を計算して飛ばす。世界記録は 98.43m。">
 <meta name="twitter:image" content="https://nosunosukawa.github.io/kamihikoki/og.png">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%231F6B52'/%3E%3Cpath d='M8 30l48-18-20 40-6-16z' fill='%23fbfaf5'/%3E%3Cpath d='M30 36l26-24-20 40z' fill='%23e5482d'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -434,7 +434,7 @@ details.more[open] summary{margin-bottom:6px}
       </div>
       <div class="goal" id="goalTop"></div>
       <h2>投げ方</h2>
-      <div class="sl"><label for="tV">投げる速さ</label><output id="tVo"></output><input id="tV" type="range" min="2" max="15" step="0.1" value="6"><small class="slcap" id="tVCap"></small></div>
+      <div class="sl"><label for="tV">投げる速さ</label><output id="tVo"></output><input id="tV" type="range" min="2" max="35" step="0.1" value="6"><small class="slcap" id="tVCap"></small></div>
       <div class="sl"><label for="tA">投げる角度</label><output id="tAo"></output><input id="tA" type="range" min="-10" max="60" step="0.5" value="5"></div>
       <div class="sl"><label for="tH">投げる向き</label><output id="tHo"></output><input id="tH" type="range" min="-30" max="30" step="1" value="0"></div>
       <div class="sl" id="spinRow" hidden><label for="tS">回転（後ろから見て）</label><output id="tSo"></output><input id="tS" type="range" min="-15" max="15" step="1" value="10"></div>
@@ -481,7 +481,7 @@ details.more[open] summary{margin-bottom:6px}
 外乱：投げるたびに、角度・傾き・向き・速さのぶれ、空気のゆらぎ、左右の翼の反りの差を、乱数で1回ぶん決めます。「なし」にすると毎回同じ結果になります。<br>
 入っていないもの：付け根の折り目のゆるみ、紙のねじれと折りぐせ、重なった紙のすき間に入る空気。<br>
 アプリとして使う：iPhone は Safari の共有ボタンから「ホーム画面に追加」、Android は Chrome のメニューから「アプリをインストール」。全画面で開き、一度開いたあとは通信がなくても遊べます。<br>
-世界記録：飛距離 88.31m（2022年）、滞空 29.2秒（2010年）。ギネス世界記録より。<br>月の重力は 1.62m/s²、火星は重力 3.71m/s²・大気の密度 約0.020kg/m³ として計算（NASA の資料の値）。</p>
+世界記録：飛距離 98.43m（2025年。A4・100g/m² までの紙1枚を、屋内で投げる決まり）、滞空 29.2秒（2010年）。ギネス世界記録より。<br>月の重力は 1.62m/s²、火星は重力 3.71m/s²・大気の密度 約0.020kg/m³ として計算（NASA の資料の値）。</p>
   </aside>
 </div>
 <div class="toast" id="toast" role="status"></div>
@@ -494,7 +494,7 @@ details.more[open] summary{margin-bottom:6px}
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const K=window.KH, app=$('#app');
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v)), TAU=Math.PI*2, DEG=Math.PI/180;
-const TAG='#紙飛行機ラボ', REC_DIST=88.31, REC_TIME=29.2;
+const TAG='#紙飛行機ラボ', REC_DIST=98.43, REC_TIME=29.2;
 const LOCS=[
   {id:'yard',name:'校庭',h:1.7,note:'手の高さ 1.7m から。世界記録と比べられる標準の場所'},
   {id:'roof',name:'校舎の屋上',h:15,note:'高さ 15m。滑空比のよい機体ほど遠くへ届く'},
@@ -519,7 +519,7 @@ function baseGet(){ try{ const o=JSON.parse(localStorage.getItem(BASE_KEY)||'nul
 const baseVals=()=>Object.assign({},FLAT,baseGet()||{});
 Object.assign(D,baseVals());
 /* 投げ方の基本：仕上げとは別に覚える（速さ・角度・向き・回転） */
-const THROW0={v:6,ang:5,aim:0,spin:10}, THROW_KEY='khlab_throw', THROW_LIM={v:[2,15],ang:[-10,60],aim:[-30,30],spin:[-15,15]};
+const THROW0={v:6,ang:5,aim:0,spin:10}, THROW_KEY='khlab_throw', THROW_LIM={v:[2,35],ang:[-10,60],aim:[-30,30],spin:[-15,15]};
 function throwGet(){ try{ const o=JSON.parse(localStorage.getItem(THROW_KEY)||'null'); if(!o||typeof o!=='object') return null; const r={}; for(const k in THROW0){ const v=+o[k]; if(!isFinite(v)) return null; r[k]=clamp(v,THROW_LIM[k][0],THROW_LIM[k][1]); } return r; }catch(e){ return null; } }
 Object.assign(D,throwGet()||{});
 let paper, faces, history=[], env, pl, an, tab='make';
@@ -537,7 +537,7 @@ function encode(){ const o=Object.assign({},D,{folds:D.folds.map(f=>[f[0][0],f[0
 function decode(h){ try{ const o=JSON.parse(decodeURIComponent(escape(atob(h.replace(/-/g,'+').replace(/_/g,'/')))));
     const num=(k,a,b)=>{ const v=Number(o[k]); if(Number.isFinite(v)) D[k]=clamp(v,a,b); };
     if(K.MATERIALS.some(m=>m.id===o.mat)) D.mat=o.mat; if(K.SIZES.some(s=>s.id===o.size)) D.size=o.size; if(['plane','ring','ball'].includes(o.kind)) D.kind=o.kind; if(LOCS.some(l=>l.id===o.loc)) D.loc=o.loc;
-    num('crush',0,CRUSH); num('h',6,40); num('wk',-15,15); num('elevD',-4,4); num('rud',-10,10); num('dih',-5,30); num('elev',-5,25); num('clips',0,3); num('wl',0,4); D.wl=Math.round(D.wl); num('wa',-90,90); num('ringA',10,40); num('ringN',1,6); num('tight',0,2); D.tight=Math.round(D.tight); num('v',2,30); num('ang',-10,60); num('aim',-30,30); num('spin',-15,15);
+    num('crush',0,CRUSH); num('h',6,40); num('wk',-15,15); num('elevD',-4,4); num('rud',-10,10); num('dih',-5,30); num('elev',-5,25); num('clips',0,3); num('wl',0,4); D.wl=Math.round(D.wl); num('wa',-90,90); num('ringA',10,40); num('ringN',1,6); num('tight',0,2); D.tight=Math.round(D.tight); num('v',2,35); num('ang',-10,60); num('aim',-30,30); num('spin',-15,15);
     num('dist',0,2); D.dist=Math.round(D.dist); num('temp',-10,40); num('alt',0,3000); num('head',-15,15); num('cross',-10,10); num('gust',0,6);
     if(Array.isArray(o.folds)) D.folds=o.folds.slice(0,14).filter(f=>Array.isArray(f)&&(f.length===4||f.length===5)&&f.every(x=>Number.isFinite(Number(x)))).map(f=>[[clamp(+f[0],-400,400),clamp(+f[1],-100,600)],[clamp(+f[2],-400,400),clamp(+f[3],-100,600)],[1,2,3].includes(+f[4])?+f[4]:0]);
     return true; }catch(e){ return false; } }
@@ -820,7 +820,7 @@ function renderLabels(){ if(typeof drawIcons==='function') queueMicrotask(drawIc
   o('eCrosso',D.cross>0?'左から '+fmt(D.cross,1)+' m/s':D.cross<0?'右から '+fmt(-D.cross,1)+' m/s':'なし'); o('eGusto',D.gust?'±'+fmt(D.gust,2)+' m/s':'なし');
   $$('#dist button').forEach(b=>b.setAttribute('aria-pressed',String(+b.dataset.d===D.dist))); { const d=K.DIST[D.dist];
     $('#distCap').textContent=d?`投げるたびに結果が変わります。角度 ±${d.ang}°・左右の傾き ±${d.roll}°・向き ±${d.yaw}°・速さ ±${Math.round(d.dv*100)}%、空気のゆらぎ ${d.turb}m/s、左右の翼の反りの差 ±${d.warp}°（どれも、ばらつきの目安）`:'ぶれもゆらぎもなし。同じ投げ方なら、毎回同じ結果になります。'; }
-  $('#spinRow').hidden=D.kind!=='ring'; $('#tV').max=D.kind==='ball'?30:D.kind==='ring'?20:15;
+  $('#spinRow').hidden=D.kind!=='ring'; $('#tV').max=D.kind==='ring'?20:35;
   $('#mkPlane').hidden=D.kind!=='plane'; $('#mkRing').hidden=D.kind!=='ring'; $('#mkBall').hidden=D.kind!=='ball'; $('#tnPlane').hidden=D.kind!=='plane';
   app.dataset.kind=D.kind; $$('#kind button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.kind===D.kind))); $$('#tight button').forEach(b=>b.setAttribute('aria-pressed',String(+b.dataset.t===D.tight)));
   let best={}; try{ best=JSON.parse(localStorage.getItem('khlab_best')||'{}'); }catch(e){}
