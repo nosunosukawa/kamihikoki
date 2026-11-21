@@ -1099,12 +1099,13 @@ function renderRank(){ const ol=$('#rankList'); if(!ol) return; const L=rankAll(
 function loadRank(e){ if(busy) return; if(!decode(e.c)){ toast('この記録は読みこめませんでした'); return; } D.preset=e.p||'';
   setPaper(); refold(); syncInputs(); applyLoc(); changed(); rankNew=-1; resetFlightView(); renderRank(); $('#panel').scrollTop=0; toast(`${fmt(e.d,1)}m の機体に戻しました。投げてみてください`); }
 /* ================= みんなのランキング（Game Center。iPhone アプリの中だけ） =================
-   送るのは、校庭の飛行機・校庭の円筒・屋上の飛行機で、風（前後・横・突風）をすべて 0 にして投げた記録だけ（風で記録が伸びないように）。点は距離 m × 10 */
+   送るのは、校庭の飛行機・校庭の円筒・屋上の飛行機で、風（前後・横・突風）をすべて 0 にして投げた記録だけ（風で記録が伸びないように）。競技（飛距離・滞空時間・旋回）ごとに別の順位表。点は 距離 m×10／秒×100／回×10 */
 const GC_BOARDS={'yard.plane':'校庭・飛行機','yard.ring':'校庭・円筒','roof.plane':'校舎の屋上・飛行機'};
 const GC=(window.webkit&&webkit.messageHandlers&&webkit.messageHandlers.gc)||null;
 let gcSigned=false, rankTab='me';
-const gcBoard=()=>D.ev==='dist'&&GC_BOARDS[D.loc+'.'+D.kind]?D.loc+'.'+D.kind:null;
-function gcWhyNot(){ if(D.ev!=='dist') return 'みんなのランキングは、いまは飛距離だけです。'; if(!gcBoard()) return `みんなのランキングは「${Object.values(GC_BOARDS).join('」「')}」だけです。`; if(D.head||D.cross||D.gust) return '風（前後・横・突風）を 0 にして投げた記録だけを、みんなのランキングに送ります。'; return ''; }
+const gcBoard=()=>GC_BOARDS[D.loc+'.'+D.kind]?(D.ev==='dist'?'':D.ev+'.')+D.loc+'.'+D.kind:null;      // 競技ごとに別の順位表（飛距離は前からの名前のまま）
+const gcMul=()=>D.ev==='time'?100:10;      // 送る点：飛距離は m×10、滞空は 秒×100、旋回は 回×10
+function gcWhyNot(){ if(!gcBoard()) return `みんなのランキングは「${Object.values(GC_BOARDS).join('」「')}」だけです。`; if(D.head||D.cross||D.gust) return '風（前後・横・突風）を 0 にして投げた記録だけを、みんなのランキングに送ります。'; return ''; }
 function gcAsk(){ const b=gcBoard(); if(!GC||!b) return; $('#gcCap').textContent='読みこみ中…'; GC.postMessage({op:'top',board:b}); }
 function renderGc(p){ const ol=$('#gcList'); ol.innerHTML=''; const b=gcBoard();
   if(!b){ $('#gcCap').textContent=gcWhyNot(); return; }
@@ -1112,14 +1113,14 @@ function renderGc(p){ const ol=$('#gcList'); ol.innerHTML=''; const b=gcBoard();
   if(!p||!p.ok){ $('#gcCap').textContent='読みこめませんでした。通信のある所で開き直してください。'; return; }
   if(!p.rows.length){ const li=document.createElement('li'); li.className='empty'; li.textContent='まだ記録がありません。最初の1人になれます。'; ol.appendChild(li); }
   for(const r of p.rows){ const li=document.createElement('li'); if(r.me) li.className='me'; li.style.counterReset='r '+(r.rank-1);
-    li.innerHTML='<span class="rn"></span><span class="rd"></span>'; li.querySelector('.rn').textContent=r.name+(r.me?'（あなた）':''); li.querySelector('.rd').textContent=fmt(r.score/10,1)+' m'; ol.appendChild(li); }
-  $('#gcCap').textContent=`${GC_BOARDS[b]}・参加 ${p.total}人。`+gcWhyNot(); }
+    li.innerHTML='<span class="rn"></span><span class="rd"></span>'; li.querySelector('.rn').textContent=r.name+(r.me?'（あなた）':''); li.querySelector('.rd').textContent=fmt(r.score/gcMul(),EV().n)+' '+EV().unit; ol.appendChild(li); }
+  $('#gcCap').textContent=`${EV().name}・${GC_BOARDS[D.loc+'.'+D.kind]}・参加 ${p.total}人。`+gcWhyNot(); }
 window.KH_GC={ on(kind,p){ if(kind==='state'){ gcSigned=!!p.signedIn; if(rankTab==='gc') gcAsk(); }
   else if(kind==='submitted'){ if(p.ok){ toast('みんなのランキングに送りました'); if(rankTab==='gc') gcAsk(); } }
   else if(kind==='top'){ if(p.board===gcBoard()) renderGc(p); } } };
 function setRankTab(t){ rankTab=t; $$('#rankTab button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.r===t))); $('#rankList').hidden=t!=='me'; $('#gcBox').hidden=t!=='gc'; if(t==='gc'){ if(gcBoard()) gcAsk(); else renderGc(null); } }
 if(GC){ $('#rankTab').hidden=false; $$('#rankTab button').forEach(b=>b.addEventListener('click',()=>setRankTab(b.dataset.r))); GC.postMessage({op:'state'}); }
-function gcSubmit(dist){ const b=gcBoard(); if(!GC||!b||D.head||D.cross||D.gust||!gcSigned) return; GC.postMessage({op:'submit',board:b,score:Math.round(dist*10)}); }
+function gcSubmit(x){ const b=gcBoard(); if(!GC||!b||D.head||D.cross||D.gust||!gcSigned) return; GC.postMessage({op:'submit',board:b,score:Math.round(x*gcMul())}); }
 /* ================= 目標：自己ベストの、次に目指す距離（場所 × 作ったもの ごと）。校庭では、最後の目標が世界記録 ================= */
 const GOALS=[3,5,8,10,12,15,20,25,30,40,50,60,70,80,100,150,200,300,500,1000,2000,5000];
 const GOALS_T=[2,3,4,5,6,8,10,12,15,20,25,30,45,60,90,120,180,300,600], GOALS_R=[0.5,1,1.5,2,3,4,5,6,8,10,15,20,30,50,100,200];
@@ -1151,7 +1152,7 @@ function finish(){ const f=flight, st=f.st, dist=Math.hypot(st.p[0],st.p[2]), L=
   const g0=goalFor(bestNow());
   try{ const b=JSON.parse(localStorage.getItem('khlab_best')||'{}'), k=evKey(); if(!(b[k]>=score)){ b[k]=D.ev==='dist'?Math.round(dist*10)/10:Math.round(score*100)/100; localStorage.setItem('khlab_best',JSON.stringify(b)); } }catch(e){}
   goalHit=g0.next!=null&&bestNow()>=g0.next&&L.id!=='iss'?goalFor(bestNow()).prev:null;       // この1投で、次の目標を越えたか
-  rankNew=rankAdd(R); gcSubmit(dist); if(goalHit!=null) toast(`目標 ${goalName(goalHit)} 達成！`); else if(rankNew>=0) toast(rankNew===0?'この端末の1位！':`この端末で ${rankNew+1}位`);
+  rankNew=rankAdd(R); gcSubmit(score); if(goalHit!=null) toast(`目標 ${goalName(goalHit)} 達成！`); else if(rankNew>=0) toast(rankNew===0?'この端末の1位！':`この端末で ${rankNew+1}位`);
   if(L.id!=='iss'){ const top=score>=b0; if(top){ bestPos={k:evKey(),p:[st.p[0],0,st.p[2]]}; FLAGS.best.visible=false; } setFlag('cur',st.p,'今回 '+evTxt(score)+(top&&b0>0?'（ベスト）':'')); }
   { const g1=goalFor(bestNow()); f.note=(goalHit!=null?`目標 ${goalName(goalHit)} 達成！ `:'')+diff+(st.broke!=null?'翼が折れました。':'')+tip.trim()+(goalHit==null&&g1.next!=null&&L.id!=='iss'?` 次の目標 ${goalName(g1.next)}`:''); }
   renderLabels(); }
