@@ -269,7 +269,7 @@ details.more[open] summary{margin-bottom:6px}
 .app.dock.land .hud{left:max(10px,env(safe-area-inset-left))}
 .app.dock.land .sbar{left:max(8px,env(safe-area-inset-left))}
 .app.dock.land .tools{left:max(8px,env(safe-area-inset-left))}
-.app.dock~.toast{bottom:auto;top:calc(62px + env(safe-area-inset-top))}
+.app.dock~.toast{bottom:auto;top:calc(112px + env(safe-area-inset-top))}   /* 左上の数字に重ねない */
 </style>
 </head>
 <body>
@@ -807,6 +807,12 @@ let flight=null; const camPos=new V3(), camTgt=new V3(), tmp=new V3(), dirH=new 
 function aimQuat(){ const q1=new THREE.Quaternion().setFromAxisAngle(new V3(0,0,1),D.ang*DEG), q0=new THREE.Quaternion().setFromAxisAngle(new V3(0,1,0),-D.aim*DEG); model.quaternion.copy(q0.multiply(q1)); }   // 投げる向き（上から見て右が正）と角度
 /* カメラの置き場所：後ろ（真後ろから追う）・横（左の真横）・上（真上から） */
 let camMode='back';
+/* カメラを機体に付いていかせる（tmp に行き先が入っている）。なめらかに寄せるが、置いていかれる距離に上限を付ける。
+   速く投げると、寄せるだけでは 2m 以上遅れて、横・上から見たときに機体が画面の外へ出ていた（2026-11-21 実機の録画） */
+const camLag=new THREE.Vector3();
+function camFollow(dt){ const side=camMode!=='back', mp=side?.12:.35, mt=side?.06:.12;
+  camPos.lerp(tmp,Math.min(1,dt*7)); camLag.subVectors(camPos,tmp); if(camLag.length()>mp) camPos.copy(tmp).add(camLag.setLength(mp));
+  camTgt.lerp(model.position,Math.min(1,dt*12)); camLag.subVectors(camTgt,model.position); if(camLag.length()>mt) camTgt.copy(model.position).add(camLag.setLength(mt)); }
 function camAt(p,ang){ const far=D.kind==='ball'?1.9:1.2, cx=Math.cos(ang||0), sx=Math.sin(ang||0);
   const near=app.classList.contains('dock');                                         // 電話の縦長の画面では、横・上から見るときに近づく（機体が小さくなりすぎる）
   if(camMode==='side'){ const sd=near?1.6:2.4; tmp.set(p[0]+dirH.z*sd, Math.max(.25,p[1]+.25), p[2]-dirH.x*sd); }
@@ -897,7 +903,7 @@ function showFrame(fr,dt){ const f=flight; replay.fr=fr;
   { const fs={t:fr.t,p:fr.p,q:fr.q,rel:fr.rel,N:fr.fx&&fr.fx.N,th:fr.fx&&fr.fx.th,y:fr.fx&&fr.fx.y}, en=f.env||env;
     if(replay.playing) flowStep((dt||0)*rpSpeed,fs,en); else if(replay.lastT!==fr.t){ replay.lastT=fr.t; FLOW.seeded=false; for(let k=0;k<14;k++) flowStep(.02,fs,en); } }
   hudSet(Math.hypot(fr.p[0],fr.p[2]),fr.p[1],fr.sp,fr.a/DEG,fr.t); lbAlpha=fr.a; { let m=0; if(fr.fx) for(const v of fr.fx.th) if(Math.abs(v)>Math.abs(m)) m=v; hudFlex(m,rpSpeed===1?'×1':rpSpeed===.5?'×½':'×⅕'); } if(!replay.playing&&f.st.landed&&fr===f.rec[f.rec.length-1]){ airArrows(null); flowHide(); } else airArrows(fr.p,fr.rel,fr.F);
-  camAt(fr.p,0); camPos.lerp(tmp,Math.min(1,(dt||1)*7)); camTgt.lerp(model.position,Math.min(1,(dt||1)*12));
+  camAt(fr.p,0); camFollow(dt||1);
   let fl=0; if(fr.fx) for(const v of fr.fx.th) if(Math.abs(v)>Math.abs(fl)) fl=v;
   const T=f.rec[f.rec.length-1].t; $('#rpT').value=Math.round(fr.t/T*1000);
   $('#rpInfo').textContent=`${fmt(fr.t,2)}秒  迎角 ${Math.round(fr.a/DEG)}°  速さ ${fmt(fr.sp,1)}m/s`+(D.kind==='plane'&&fr.fx?`  しなり ${Math.round(Math.abs(fl)/DEG)}°`:'')+(fr.brk?'  ⚠ 付け根が折れた後':''); }
@@ -926,7 +932,7 @@ function simulate(dt){ const f=flight, st=f.st; if(!f.done){ f.acc+=dt*speedMul;
   if(!f.done) flowStep(dt*speedMul,{t:st.t,p:st.p,q:st.q,rel:st.rel,N:st.fx&&st.fx.N,th:st.fx&&st.fx.th,y:st.fx&&st.fx.y},f.env||env);
   const vh=Math.hypot(st.v[0],st.v[2]); if(vh>.4&&!f.done){ tmp.set(st.v[0]/vh,0,st.v[2]/vh); dirH.lerp(tmp,Math.min(1,dt*2.5)).normalize(); }
   camAt(st.p,f.done&&camMode==='back'?f.after*.25:0);
-  camPos.lerp(tmp,Math.min(1,dt*7)); camTgt.lerp(model.position,Math.min(1,dt*12));
+  camFollow(dt);
   hudSet(Math.hypot(st.p[0],st.p[2]),st.p[1],st.speed,st.alpha/DEG,st.t); hudFlex(st.flex,null); lbAlpha=st.alpha; }
 /* ================= ランキング（この端末）：場所 × 作ったもの ごとに上位10回。機体の設定ごと残して、呼び戻せる ================= */
 const RANK_KEY='khlab_rank', DIST_NAME=['外乱なし','外乱ふつう','外乱強い'];
