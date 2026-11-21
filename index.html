@@ -438,6 +438,8 @@ details.more[open] summary{margin-bottom:6px}
       <div class="sl"><label for="tA">投げる角度</label><output id="tAo"></output><input id="tA" type="range" min="-10" max="60" step="0.5" value="5"></div>
       <div class="sl"><label for="tH">投げる向き</label><output id="tHo"></output><input id="tH" type="range" min="-30" max="30" step="1" value="0"></div>
       <div class="sl" id="spinRow" hidden><label for="tS">回転（後ろから見て）</label><output id="tSo"></output><input id="tS" type="range" min="-15" max="15" step="1" value="10"></div>
+      <div class="baseRow"><button class="b" id="thSave">いまの投げ方を自分の基本にする</button><button class="b" id="thLoad">自分の投げ方に戻す</button><button class="b" id="thFirst">はじめの投げ方に戻す</button></div>
+      <p class="cap" id="thCap"></p>
       <div id="flyTune">
         <h2>機体の調整<small>結果を見て直し、そのまま投げ直せます</small></h2>
         <p class="hint" id="verdictFly"></p>
@@ -516,6 +518,10 @@ const FLAT={h:16,wk:0,elevD:0,rud:0,dih:0,elev:0,clips:0,wl:0,wa:90}, BASE_KEY='
 function baseGet(){ try{ const o=JSON.parse(localStorage.getItem(BASE_KEY)||'null'); if(!o||typeof o!=='object') return null; const r={}; for(const k in FLAT){ const v=+o[k]; if(!isFinite(v)) return null; r[k]=clamp(v,BASE_LIM[k][0],BASE_LIM[k][1]); } return r; }catch(e){ return null; } }
 const baseVals=()=>Object.assign({},FLAT,baseGet()||{});
 Object.assign(D,baseVals());
+/* 投げ方の基本：仕上げとは別に覚える（速さ・角度・向き・回転） */
+const THROW0={v:6,ang:5,aim:0,spin:10}, THROW_KEY='khlab_throw', THROW_LIM={v:[2,15],ang:[-10,60],aim:[-30,30],spin:[-15,15]};
+function throwGet(){ try{ const o=JSON.parse(localStorage.getItem(THROW_KEY)||'null'); if(!o||typeof o!=='object') return null; const r={}; for(const k in THROW0){ const v=+o[k]; if(!isFinite(v)) return null; r[k]=clamp(v,THROW_LIM[k][0],THROW_LIM[k][1]); } return r; }catch(e){ return null; } }
+Object.assign(D,throwGet()||{});
 let paper, faces, history=[], env, pl, an, tab='make';
 function refold(){ sel=null; faces=K.newPaper(paper); history=[]; const ok=[]; for(const f of D.folds){ const r=K.fold(faces,f[0],f[1],f[2]&1,f[2]&2); if(r.err) break; history.push(faces); faces=r.faces; ok.push(f); } D.folds=ok; }
 function buildAll(){
@@ -873,6 +879,14 @@ function baseInit(){ baseCap();
   $('#baseSave').addEventListener('click',()=>{ const o={}; for(const k in FLAT) o[k]=D[k]; let ok=true; try{ localStorage.setItem(BASE_KEY,JSON.stringify(o)); }catch(e){ ok=false; } baseCap(); if(!ok||!baseGet()) $('#baseCap').textContent='保存できませんでした（この端末では、記録を残す場所が使えません）。'; });
   $('#baseLoad').addEventListener('click',()=>{ const b=baseGet(); if(b) baseApply(b); });
   $('#baseFlat').addEventListener('click',()=>baseApply(Object.assign({},FLAT,{h:D.h}))); }
+function throwCap(){ const b=throwGet(); $('#thLoad').disabled=!b;
+  $('#thCap').textContent=b?`自分の投げ方：秒速 ${fmt(b.v,1)}m・角度 ${fmt(b.ang,1)}°・向き ${fmt(b.aim,0)}°・回転 ${fmt(b.spin,0)}。開いたときに、この投げ方から始まります。この端末の中だけに残ります。`
+    :'自分の投げ方は、まだありません。はじめは 秒速 6m・上向き 5°・まっすぐ です。'; }
+function throwApply(q){ for(const k in THROW0) D[k]=q[k]; syncInputs(); changed(); if(typeof dockSync==='function') dockSync(); }
+function throwInit(){ throwCap();
+  $('#thSave').addEventListener('click',()=>{ const o={}; for(const k in THROW0) o[k]=D[k]; let ok=true; try{ localStorage.setItem(THROW_KEY,JSON.stringify(o)); }catch(e){ ok=false; } throwCap(); if(!ok||!throwGet()) $('#thCap').textContent='保存できませんでした（この端末では、記録を残す場所が使えません）。'; });
+  $('#thLoad').addEventListener('click',()=>{ const b=throwGet(); if(b) throwApply(b); });
+  $('#thFirst').addEventListener('click',()=>throwApply(THROW0)); }
 function setTab(t){ if(flight&&!flight.done) flight=null; throwBtn(false); tab=t; velArrow.visible=airArrow.visible=forceArrow.visible=weightArrow.visible=false; flowHide();
   { const tp=$('#tnPlane'), tune=$('.pane.tune'); if(t==='fly') $('#flyTuneSlot').appendChild(tp); else if(tp.parentNode!==tune) tune.insertBefore(tp,tune.firstChild); }   /* 仕上げのつまみを、飛ばす画面でも使う */ app.dataset.tab=t; $$('.tabs button').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.tab===t)));
   const sc=t==='fly'?field:hangar; if(model.parent!==sc){ sc.add(model); } if(t!=='fly'){ model.position.set(0,0,0); model.quaternion.set(0,0,0,1); model.scale.setScalar(1); orbit.auto=true; }
@@ -1374,7 +1388,7 @@ function frame(now){ const dt=Math.min(.05,(now-last)/1000||0); last=now; tick(d
 
 /* ================= 起動 ================= */
 if(location.hash.startsWith('#d=')) decode(location.hash.slice(3));
-setPaper(); refold(); syncInputs(); baseInit(); lbInit(); buildAll(); buildMesh(); bendMesh(glideFx); renderDiag(); renderLabels(); applyLoc(); fit(); setTab('make');
+setPaper(); refold(); syncInputs(); baseInit(); throwInit(); lbInit(); buildAll(); buildMesh(); bendMesh(glideFx); renderDiag(); renderLabels(); applyLoc(); fit(); setTab('make');
 if(document.fonts&&document.fonts.ready) document.fonts.ready.then(()=>{ drawFold(); });
 requestAnimationFrame(frame);
 })();
