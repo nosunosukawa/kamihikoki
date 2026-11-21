@@ -260,6 +260,15 @@ details.more[open] summary{margin-bottom:6px}
 .app.dock[data-tab="tune"] .sbar>:not(#lbBtn){display:none}
 .app.dock .lb{display:none!important}
 .app.dock.lbon[data-kind="plane"]:not([data-tab="make"]) .lb{display:block!important;left:8px;bottom:60px}
+/* 電話を横向きにしたとき：台は右に細く置く。切り欠きの分だけ左右をあける */
+.app.dock.land{--panel:318px}
+.app.dock.land:not([data-tab="make"]),.app.dock.land[data-sheet="max"]:not([data-tab="make"]){grid-template-rows:auto minmax(0,1fr)}
+.app.dock.land .bar{padding-left:max(14px,env(safe-area-inset-left));padding-right:max(14px,env(safe-area-inset-right))}
+.app.dock.land .panel{padding-right:max(16px,env(safe-area-inset-right))}
+.app.dock.land .dkchips{margin-right:calc(-1 * max(16px,env(safe-area-inset-right)))}
+.app.dock.land .hud{left:max(10px,env(safe-area-inset-left))}
+.app.dock.land .sbar{left:max(8px,env(safe-area-inset-left))}
+.app.dock.land .tools{left:max(8px,env(safe-area-inset-left))}
 .app.dock~.toast{bottom:auto;top:calc(62px + env(safe-area-inset-top))}
 </style>
 </head>
@@ -566,7 +575,8 @@ function buildMesh(){
 /* 画面のうち、操作盤に隠れていない部分の真ん中に機体が来るようにする */
 const view={fw:1,fh:1};
 const HAS_HAS=(()=>{ try{ return CSS.supports('selector(:has(*))'); }catch(e){ return false; } })();
-function dockMode(){ const on=HAS_HAS&&window.innerWidth<=760; if(!app.dataset.sheet) app.dataset.sheet='min'; if(app.classList.contains('dock')===on) return; app.classList.toggle('dock',on); $('#dzc').height=on?240:290; if(typeof dockSync==='function') dockSync(); }
+function dockMode(){ const land=window.innerWidth>760&&window.innerHeight<=520, on=HAS_HAS&&(window.innerWidth<=760||land);      // 電話を横向きにしたとき（高さ 520px まで）も、電話の並びにする
+  if(!app.dataset.sheet) app.dataset.sheet='min'; app.classList.toggle('land',on&&land); if(app.classList.contains('dock')===on) return; app.classList.toggle('dock',on); $('#dzc').height=on?240:290; if(typeof dockSync==='function') dockSync(); }
 function fit(){ dockMode(); const w=window.innerWidth, h=window.innerHeight, r=$('#stage').getBoundingClientRect(); renderer.setSize(w,h,false); camera.aspect=w/h; view.fw=r.width/w; view.fh=r.height/h;
   camera.setViewOffset(w,h,(w-r.width)/2-r.left,(h-r.height)/2-r.top,w,h); camera.updateProjectionMatrix();
   const fc=$('#foldcv'), d=Math.min(2,window.devicePixelRatio||1); fc.width=Math.max(10,Math.round(r.width*d)); fc.height=Math.max(10,Math.round(r.height*d)); app.classList.toggle('wide',r.width>=600); drawFold(); }
